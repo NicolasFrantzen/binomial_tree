@@ -78,7 +78,7 @@ impl BinomialTree {
             let p = self.params.p();
             if let Some(up) = &node.borrow().up {
                 if let Some(down) = &node.borrow().down {
-                    let payoff = (up.borrow().value.get() * p) + (down.borrow().value.get() * (1.0 - p)) * self.discount_factor;
+                    let payoff = ((up.borrow().value.get() * p) + (down.borrow().value.get() * (1.0 - p))) * self.discount_factor;
                     node.borrow().value.set(payoff);
                     last_node = Some(node.clone());
                 }
@@ -133,10 +133,8 @@ mod tests {
     use super::*;
     use crate::instruments::EuropeanOption;
 
-    fn r2(num: f32) -> f32
-    {
-        (num * 100.0).round() / 100.0
-    }
+    fn r2(num: f32) -> f32 { (num * 100.0).round() / 100.0 }
+    fn r3(num: f32) -> f32 { (num * 1000.0).round() / 1000.0 }
 
     #[test]
     fn test_binomial_tree_new() {
@@ -169,4 +167,15 @@ mod tests {
 
         assert_eq!(r2(val.value), 53.39);
     }
+
+    #[test]
+    fn test_binomial_tree_european_call3() {
+        let binom_tree = BinomialTree::new(0.61, 3, 0.25, 0.12, 0.05, 0.07);
+
+        let val = binom_tree.value(EuropeanOption::new(0.6, 0.25), 810.0);
+        println!("{}", val);
+
+        assert_eq!(r3(val.value), 0.019);
+    }
+
 }
