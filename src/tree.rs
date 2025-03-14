@@ -1,4 +1,5 @@
 use std::cell::{Cell, RefCell};
+use std::fmt::{Display, Formatter};
 use std::iter::Rev;
 use std::rc::Rc;
 use std::vec::IntoIter;
@@ -56,21 +57,28 @@ impl IntoIterator for Tree {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum UpDown {
     Initial,
     Up,
     Down,
 }
 
-impl std::fmt::Debug for UpDown {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let s = match self {
-            UpDown::Initial => "I",
-            UpDown::Up => "U",
-            UpDown::Down => "D",
+impl From<&UpDown> for char {
+    fn from(value: &UpDown) -> Self {
+        let s = match value {
+            UpDown::Initial => 'I',
+            UpDown::Up => 'U',
+            UpDown::Down => 'D',
         };
-        write!(f, "{}", s)
+        s
+    }
+}
+
+impl std::fmt::Display for UpDown {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+
+        write!(f, "{}", char::try_from(self).unwrap())
     }
 }
 
@@ -92,6 +100,13 @@ pub(crate) struct NodeName {
     pub name: Vec<UpDown>,
 }
 
+impl Display for NodeName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s: String = self.name.iter().map(char::from).collect();
+        write!(f, "{}", s)
+    }
+}
+
 impl TryFrom<&str> for NodeName {
     type Error = ();
 
@@ -104,6 +119,7 @@ impl TryFrom<&str> for NodeName {
 
 pub(crate) type TreeNodeType = Rc<RefCell<TreeNode>>;
 
+#[derive(Debug)]
 pub(crate) struct TreeNode {
     pub parent: Option<TreeNodeType>,
     pub up: Option<TreeNodeType>, // TODO: Replace RefCell with a macro that constructs a tree in one go

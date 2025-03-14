@@ -1,7 +1,8 @@
 use std::cell::{Cell, RefCell};
+use std::fmt::{Display, Formatter};
 use std::iter::once;
 use std::rc::Rc;
-use crate::Greeks;
+
 use crate::tree::{NodeName, Tree, TreeNode, TreeNodeType, UpDown};
 use crate::instruments::Option_;
 
@@ -71,15 +72,19 @@ impl BinomialTree {
         Self::add_branches(node.borrow().down.clone().unwrap(), vol_params, level + 1, max_level);
     }
 
-    fn value<T: Option_>(&self, option: T, underlying_price: f32) -> Greeks {
+    fn value<T: Option_>(&self, option: T) -> Value {
+        let p = self.params.p();
         let iter = self.tree.clone().into_iter();
         let mut last_node: Option<TreeNodeType> = None; // TODO: Use peekable and find the last one
         for node in iter { // TODO: Maybe use iter trait, to avoid extra clone?
-            let p = self.params.p();
+            let branch_price = node.borrow().price;
+
             if let Some(up) = &node.borrow().up {
                 if let Some(down) = &node.borrow().down {
-                    let payoff = ((up.borrow().value.get() * p) + (down.borrow().value.get() * (1.0 - p))) * self.discount_factor;
-                    node.borrow().value.set(payoff);
+                    let value = ((up.borrow().value.get() * p) + (down.borrow().value.get() * (1.0 - p))) * self.discount_factor;
+                    node.borrow().value.set(option.value(value, branch_price));
+
+                    //println!("{} -> {}/{}", &node.borrow().name, &node.borrow().value.get(), &node.borrow().price);
                     last_node = Some(node.clone());
                 }
                 else {
@@ -91,17 +96,19 @@ impl BinomialTree {
                     panic!("Tree incomplete");
                 }
 
-                let branch_price = node.borrow().price;
-                let payoff = (branch_price - option.strike()).max(0.0); // NOTE: Assumed european call!
+                let payoff = option.payoff(branch_price);
                 node.borrow().value.set(payoff);
+
+                //println!("{} -> {}/{}", &node.borrow().name, &node.borrow().value.get(), &node.borrow().price);
                 last_node = Some(node.clone());
             }
         }
         if let Some(last_node) = last_node {
-            Greeks{ value: last_node.borrow().value.get(), delta: 0.0 }
+            println!("{}", self.params.p());
+            Value { value: last_node.borrow().value.get(), delta: 0.0, risk_free_probability: p }
         }
         else {
-            Greeks{ value: 0.0, delta: 0.0 }
+            Value { value: 0.0, delta: 0.0, risk_free_probability: p }
         }
     }
 }
@@ -128,13 +135,26 @@ impl VolatilityParameters {
     }
 }
 
+struct Value {
+    value: f32,
+    delta: f32,
+    risk_free_probability: f32,
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}, {}",self.value, self.delta)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::instruments::EuropeanOption;
+    use crate::instruments::{AmericanOption, EuropeanOption, OptionType};
 
     fn r2(num: f32) -> f32 { (num * 100.0).round() / 100.0 }
     fn r3(num: f32) -> f32 { (num * 1000.0).round() / 1000.0 }
+    fn r4(num: f32) -> f32 { (num * 10000.0).round() / 10000.0 }
 
     #[test]
     fn test_binomial_tree_new() {
@@ -153,29 +173,43 @@ mod tests {
     #[test]
     fn test_binomial_tree_european_call() {
         let binom_tree = BinomialTree::new(100.0, 2, 0.5, 0.3, 0.05, 0.0);
-
-        let val = binom_tree.value(EuropeanOption::new(95.0, 0.5), 100.0);
-        println!("{}", val);
+        let val = binom_tree.value(EuropeanOption::new(OptionType::Call, 95.0, 0.5));
+        assert_eq!(r2(val.value), 12.36)
     }
 
     #[test]
     fn test_binomial_tree_european_call2() {
         let binom_tree = BinomialTree::new(810.0, 2, 0.5, 0.2, 0.05, 0.02);
-
-        let val = binom_tree.value(EuropeanOption::new(800.0, 0.5), 810.0);
-        println!("{}", val);
-
+        let val = binom_tree.value(EuropeanOption::new(OptionType::Call, 800.0, 0.5));
         assert_eq!(r2(val.value), 53.39);
     }
 
     #[test]
     fn test_binomial_tree_european_call3() {
         let binom_tree = BinomialTree::new(0.61, 3, 0.25, 0.12, 0.05, 0.07);
-
-        let val = binom_tree.value(EuropeanOption::new(0.6, 0.25), 810.0);
-        println!("{}", val);
-
+        let val = binom_tree.value(EuropeanOption::new(OptionType::Call, 0.6, 0.25));
         assert_eq!(r3(val.value), 0.019);
     }
 
+    #[test]
+    fn test_binomial_tree_european_put1() {
+        let binom_tree = BinomialTree::new(50.0, 2, 2.0, 0.3, 0.05, 0.0);
+        let val = binom_tree.value(EuropeanOption::new(OptionType::Put, 52.0, 2.0));
+        assert_eq!(r2(val.value), 6.25);
+    }
+
+    #[test]
+    fn test_binomial_tree_american_put1() {
+        let binom_tree = BinomialTree::new(50.0, 2, 2.0, 0.3, 0.05, 0.0);
+        let val = binom_tree.value(AmericanOption::new(OptionType::Put, 52.0, 2.0));
+        assert_eq!(r2(val.value), 7.43);
+    }
+    
+    #[test]
+    fn test_binomial_tree_american_put2() {
+        let binom_tree = BinomialTree::new(31.0, 3, 0.75, 0.3, 0.05, 0.05);
+        let val = binom_tree.value(AmericanOption::new(OptionType::Put, 30.0, 0.75));
+        assert_eq!(r2(val.value), 2.84);
+        assert_eq!(r4(val.risk_free_probability), 0.4626);
+    }
 }
