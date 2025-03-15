@@ -1,13 +1,9 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
-pub mod tree;
-mod binomial_tree;
-mod instruments;
-
-fn main() {
-
-}
+pub(crate) mod tree;
+pub mod binomial_tree;
+pub mod instruments;
 
 #[cfg(test)]
 mod tests {

@@ -1,4 +1,4 @@
-pub(crate) trait Option_ {
+pub trait Option_ {
     fn new(option_type: OptionType, strike: f32, expiry: f32) -> Self;
     fn expiry(&self) -> f32;
     fn strike(&self) -> f32;

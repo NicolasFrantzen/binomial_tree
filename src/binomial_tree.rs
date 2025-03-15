@@ -14,8 +14,8 @@ pub struct BinomialTree {
 
 impl BinomialTree {
     // TODO: Newtypes
-    fn new(initial_price: f32, num_steps: u32, expiry: f32, volatility: f32, interest_rate: f32, dividends: f32) -> Self {
-        let timestep = expiry / num_steps as f32;
+    pub fn new(initial_price: Spot, num_steps: u32, expiry: Expiry, volatility: f32, interest_rate: f32, dividends: f32) -> Self {
+        let timestep = expiry.0 / num_steps as f32;
         let vol_params = VolatilityParameters::new(volatility, interest_rate, dividends, timestep);
 
         let tree = Tree {
@@ -23,7 +23,7 @@ impl BinomialTree {
                 parent: None,
                 up: None,
                 down: None,
-                price: initial_price,
+                price: initial_price.0,
                 value: Cell::new(0.0),
                 name: NodeName{name: vec![UpDown::Initial]},
             })),
@@ -72,7 +72,7 @@ impl BinomialTree {
         Self::add_branches(node.borrow().down.clone().unwrap(), vol_params, level + 1, max_level);
     }
 
-    fn value<T: Option_>(&self, option: T) -> Value {
+    pub fn value<T: Option_>(&self, option: T) -> Value {
         let p = self.params.p();
         let iter = self.tree.clone().into_iter();
         let mut last_node: Option<TreeNodeType> = None; // TODO: Use peekable and find the last one
@@ -104,7 +104,7 @@ impl BinomialTree {
             }
         }
         if let Some(last_node) = last_node {
-            println!("{}", self.params.p());
+            //println!("{}", self.params.p());
             Value { value: last_node.borrow().value.get(), delta: 0.0, risk_free_probability: p }
         }
         else {
@@ -112,6 +112,9 @@ impl BinomialTree {
         }
     }
 }
+
+pub struct Spot(pub f32);
+pub struct Expiry(pub f32);
 
 #[derive(Copy, Clone)]
 struct VolatilityParameters {
@@ -135,7 +138,7 @@ impl VolatilityParameters {
     }
 }
 
-struct Value {
+pub struct Value {
     value: f32,
     delta: f32,
     risk_free_probability: f32,
@@ -158,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_binomial_tree_new() {
-        let binom_tree = BinomialTree::new(100.0, 2, 0.5, 0.3, 0.05, 0.0);
+        let binom_tree = BinomialTree::new(Spot(100.0), 2, Expiry(0.5), 0.3, 0.05, 0.0);
 
         let mut iter =  binom_tree.tree.into_iter();
 
@@ -172,42 +175,42 @@ mod tests {
 
     #[test]
     fn test_binomial_tree_european_call() {
-        let binom_tree = BinomialTree::new(100.0, 2, 0.5, 0.3, 0.05, 0.0);
+        let binom_tree = BinomialTree::new(Spot(100.0), 2, Expiry(0.5), 0.3, 0.05, 0.0);
         let val = binom_tree.value(EuropeanOption::new(OptionType::Call, 95.0, 0.5));
         assert_eq!(r2(val.value), 12.36)
     }
 
     #[test]
     fn test_binomial_tree_european_call2() {
-        let binom_tree = BinomialTree::new(810.0, 2, 0.5, 0.2, 0.05, 0.02);
+        let binom_tree = BinomialTree::new(Spot(810.0), 2, Expiry(0.5), 0.2, 0.05, 0.02);
         let val = binom_tree.value(EuropeanOption::new(OptionType::Call, 800.0, 0.5));
         assert_eq!(r2(val.value), 53.39);
     }
 
     #[test]
     fn test_binomial_tree_european_call3() {
-        let binom_tree = BinomialTree::new(0.61, 3, 0.25, 0.12, 0.05, 0.07);
+        let binom_tree = BinomialTree::new(Spot(0.61), 3, Expiry(0.25), 0.12, 0.05, 0.07);
         let val = binom_tree.value(EuropeanOption::new(OptionType::Call, 0.6, 0.25));
         assert_eq!(r3(val.value), 0.019);
     }
 
     #[test]
     fn test_binomial_tree_european_put1() {
-        let binom_tree = BinomialTree::new(50.0, 2, 2.0, 0.3, 0.05, 0.0);
+        let binom_tree = BinomialTree::new(Spot(50.0), 2, Expiry(2.0), 0.3, 0.05, 0.0);
         let val = binom_tree.value(EuropeanOption::new(OptionType::Put, 52.0, 2.0));
         assert_eq!(r2(val.value), 6.25);
     }
 
     #[test]
     fn test_binomial_tree_american_put1() {
-        let binom_tree = BinomialTree::new(50.0, 2, 2.0, 0.3, 0.05, 0.0);
+        let binom_tree = BinomialTree::new(Spot(50.0), 2, Expiry(2.0), 0.3, 0.05, 0.0);
         let val = binom_tree.value(AmericanOption::new(OptionType::Put, 52.0, 2.0));
         assert_eq!(r2(val.value), 7.43);
     }
-    
+
     #[test]
     fn test_binomial_tree_american_put2() {
-        let binom_tree = BinomialTree::new(31.0, 3, 0.75, 0.3, 0.05, 0.05);
+        let binom_tree = BinomialTree::new(Spot(31.0), 3, Expiry(0.75), 0.3, 0.05, 0.05);
         let val = binom_tree.value(AmericanOption::new(OptionType::Put, 30.0, 0.75));
         assert_eq!(r2(val.value), 2.84);
         assert_eq!(r4(val.risk_free_probability), 0.4626);
