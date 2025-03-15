@@ -10,31 +10,10 @@ pub(crate) struct Tree {
 }
 
 impl Tree {
-}
-
-impl Default for Tree {
-    fn default() -> Self {
-        Self {
-            root: Rc::new(RefCell::new(TreeNode {
-                parent: None,
-                up: None,
-                down: None,
-                price: 0.0,
-                value: Cell::new(0.0),
-                name: NodeName{name: vec![UpDown::Initial]},
-            })),
-        }
-    }
-}
-
-
-impl IntoIterator for Tree {
-    type Item = TreeNodeType;
-    type IntoIter = Rev<IntoIter<Self::Item>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let mut stack: Vec<Self::Item> = Vec::new();
-        let mut vec: Vec<Self::Item> = Vec::new();
+    pub(crate) fn iter(&self) -> TreeIterator
+    {
+        let mut stack: Vec<TreeNodeType> = Vec::new();
+        let mut vec: Vec<TreeNodeType> = Vec::new();
         stack.push(self.root.clone());
         vec.push(self.root.clone());
         while let Some(node) = stack.pop() {
@@ -53,7 +32,36 @@ impl IntoIterator for Tree {
             }
         }
 
-        vec.into_iter().rev()
+        TreeIterator{ iter: vec.into_iter().rev() }
+    }
+}
+
+impl Default for Tree {
+    fn default() -> Self {
+        Self {
+            root: Rc::new(RefCell::new(TreeNode {
+                parent: None,
+                up: None,
+                down: None,
+                price: 0.0,
+                value: Cell::new(0.0),
+                name: NodeName{name: vec![UpDown::Initial]},
+            })),
+        }
+    }
+}
+
+pub(crate) type TreeNodeType = Rc<RefCell<TreeNode>>;
+
+pub(crate) struct TreeIterator {
+    iter: Rev<IntoIter<TreeNodeType>>,
+}
+
+impl Iterator for TreeIterator {
+    type Item = TreeNodeType;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next()
     }
 }
 
@@ -116,8 +124,6 @@ impl TryFrom<&str> for NodeName {
         Ok(NodeName{name: updowns?})
     }
 }
-
-pub(crate) type TreeNodeType = Rc<RefCell<TreeNode>>;
 
 #[derive(Debug)]
 pub(crate) struct TreeNode {
@@ -198,7 +204,7 @@ mod tests {
     fn test_tree_zero_level() {
         let tree = Tree::default();
         add_branches(tree.root.clone(), 1, 0);
-        let mut iter = tree.into_iter();
+        let mut iter = tree.iter();
 
         assert_eq!(iter.size_hint(), (1, Some(1)));
         assert_eq!(iter.next().unwrap().borrow().price, 0.0);
@@ -209,7 +215,7 @@ mod tests {
     fn test_tree_one_level() {
         let tree = Tree::default();
         add_branches(tree.root.clone(), 1, 1);
-        let mut iter = tree.into_iter();
+        let mut iter = tree.iter();
 
         assert_eq!(iter.size_hint(), (3, Some(3)));
         assert_eq!(iter.next().unwrap().borrow().name, "ID".try_into().unwrap());
@@ -222,7 +228,7 @@ mod tests {
     fn test_tree_two_level() {
         let tree = Tree::default();
         add_branches(tree.root.clone(), 1, 2);
-        let mut iter = tree.into_iter();
+        let mut iter = tree.iter();
 
         assert_eq!(iter.size_hint(), (6, Some(6)));
         assert_eq!(iter.next().unwrap().borrow().name, "IUD".try_into().unwrap());
@@ -238,7 +244,7 @@ mod tests {
     fn test_tree_three_level() {
         let tree = Tree::default();
         add_branches(tree.root.clone(), 1, 3);
-        let mut iter = tree.into_iter();
+        let mut iter = tree.iter();
 
         assert_eq!(iter.size_hint(), (10, Some(10)));
         assert_eq!(iter.next().unwrap().borrow().name, "IUUD".try_into().unwrap());
@@ -268,9 +274,9 @@ mod tests {
         for i in 1..10u32  {
             let tree = Tree::default();
             add_branches(tree.root.clone(), 1, i as i32);
-            let iter = tree.into_iter();
+            let iter = tree.iter();
 
-            assert_eq!(iter.len() as u32, binom(i + 2, 2));
+            assert_eq!(iter.iter.len() as u32, binom(i + 2, 2));
         }
     }
 }

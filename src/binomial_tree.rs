@@ -74,9 +74,9 @@ impl BinomialTree {
 
     pub fn value<T: Option_>(&self, option: T) -> Value {
         let p = self.params.p();
-        let iter = self.tree.clone().into_iter();
+        let iter = self.tree.iter();
         let mut last_node: Option<TreeNodeType> = None; // TODO: Use peekable and find the last one
-        for node in iter { // TODO: Maybe use iter trait, to avoid extra clone?
+        for node in iter {
             let branch_price = node.borrow().price;
 
             if let Some(up) = &node.borrow().up {
@@ -163,7 +163,7 @@ mod tests {
     fn test_binomial_tree_new() {
         let binom_tree = BinomialTree::new(Spot(100.0), 2, Expiry(0.5), 0.3, 0.05, 0.0);
 
-        let mut iter =  binom_tree.tree.into_iter();
+        let mut iter =  binom_tree.tree.iter();
 
         assert_eq!(r2(iter.next().unwrap().borrow().price), 100.00);
         assert_eq!(r2(iter.next().unwrap().borrow().price), 134.99);
