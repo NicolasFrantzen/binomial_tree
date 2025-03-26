@@ -1,8 +1,11 @@
 use std::cell::{Cell, RefCell};
 use std::fmt::{Display, Formatter};
-use std::iter::Rev;
+use std::hash::Hash;
+use std::iter::{once, Rev};
+//use std::path::Iter;
 use std::rc::Rc;
 use std::vec::IntoIter;
+use itertools::sorted;
 
 #[derive(Clone)]
 pub(crate) struct Tree {
@@ -65,7 +68,7 @@ impl Iterator for TreeIterator {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) enum UpDown {
     Initial,
     Up,
@@ -103,9 +106,40 @@ impl TryFrom<char> for UpDown {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub(crate) struct NodeName {
     pub name: Vec<UpDown>,
+}
+
+impl NodeName {
+    pub(crate) fn value(&self, initial_value: f32, up_value: f32, down_value: f32) -> f32 {
+        let mut value = initial_value;
+        for i in self.name.iter() {
+            match i {
+                UpDown::Initial => {}
+                UpDown::Up => {
+                    value = value * up_value;
+                }
+                UpDown::Down => {
+                    value = value * down_value;
+                }
+            }
+        }
+
+        value
+    }
+
+    pub(crate) fn up(&self) -> NodeName {
+        NodeName{name: self.name.iter().chain(once(&UpDown::Up)).cloned().collect()}
+    }
+
+    pub(crate) fn up2(&self) -> NodeName {
+        NodeName{name: sorted(self.name.iter().chain(once(&UpDown::Up)).cloned()).collect()}
+    }
+
+    pub(crate) fn down(&self) -> NodeName {
+        NodeName{name: self.name.iter().chain(once(&UpDown::Down)).cloned().collect()}
+    }
 }
 
 impl Display for NodeName {
@@ -114,6 +148,12 @@ impl Display for NodeName {
         write!(f, "{}", s)
     }
 }
+
+/*impl From<Iter<'_>> for NodeName {
+    fn from(value: Iter) -> Self {
+        NodeName{ name: value.collect() }
+    }
+}*/
 
 impl TryFrom<&str> for NodeName {
     type Error = ();
@@ -198,6 +238,22 @@ mod tests {
 
         add_branches(node.borrow().up.clone().unwrap(), level + 1, max_level);
         add_branches(node.borrow().down.clone().unwrap(), level + 1, max_level);
+    }
+
+    #[test]
+    fn test_node_name_up_down() {
+        let name = NodeName { name: vec![] };
+
+        assert_eq!(name.up(), NodeName { name: vec![UpDown::Up] });
+        assert_eq!(name.down(), NodeName { name: vec![UpDown::Down] });
+
+        let up_name = name.up();
+        assert_eq!(up_name.up(), NodeName { name: vec![UpDown::Up, UpDown::Up] });
+        assert_eq!(up_name.down(), NodeName { name: vec![UpDown::Up, UpDown::Down] });
+
+        let down_name = name.down();
+        assert_eq!(down_name.up(), NodeName { name: vec![UpDown::Down, UpDown::Up] });
+        assert_eq!(down_name.up2(), NodeName { name: vec![UpDown::Up, UpDown::Down] });
     }
 
     #[test]

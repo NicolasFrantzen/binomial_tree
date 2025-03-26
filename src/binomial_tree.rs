@@ -117,14 +117,14 @@ pub struct Spot(pub f32);
 pub struct Expiry(pub f32);
 
 #[derive(Copy, Clone)]
-struct VolatilityParameters {
+pub struct VolatilityParameters {
     a: f32,
-    u: f32,
-    d: f32,
+    pub(crate) u: f32,
+    pub(crate) d: f32,
 }
 
 impl VolatilityParameters {
-    fn new(volatility: f32, interest_rate: f32, dividends: f32, timestep: f32) -> VolatilityParameters {
+    pub fn new(volatility: f32, interest_rate: f32, dividends: f32, timestep: f32) -> VolatilityParameters {
         let u= (volatility*timestep.sqrt()).exp();
         VolatilityParameters {
             a: ((interest_rate - dividends) * timestep).exp(),
@@ -133,7 +133,7 @@ impl VolatilityParameters {
         }
     }
 
-    fn p(&self) -> f32 {
+    pub(crate) fn p(&self) -> f32 {
         (self.a - self.d)/(self.u - self.d)
     }
 }
