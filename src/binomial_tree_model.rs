@@ -1,7 +1,7 @@
 use crate::binomial_tree::{Expiry, Spot, VolatilityParameters};
 use crate::binomial_tree_map::BinomialTreeMap;
 use crate::instruments::Option_;
-use crate::tree::NodeName;
+use crate::tree::{NodeName, UpDown};
 
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
@@ -26,7 +26,7 @@ impl BinomialTreeModel {
     }
 
     pub fn value<T: Option_ + Sync>(&self, option: T) -> Greeks {
-        let mut stack_iter = self.tree_map.stack.iter().rev();
+        let mut stack_iter = self.tree_map.iter();
 
         for node in stack_iter.next().expect("The tree must have length at least 1") {
             let price = node.value(self.spot.0, self.params.u, self.params.d);
@@ -39,8 +39,8 @@ impl BinomialTreeModel {
 
         for node_level in stack_iter {
             node_level.par_iter().rev().for_each(|node| {
-                let up_value = self.tree_map.map[&node.up2()].get().expect("Previous level was not evaluated"); // TODO: Fix unwrap
-                let down_value = self.tree_map.map[&node.down()].get().expect("Previous level was not evaluated"); // TODO: Fix unwrap
+                let up_value = self.tree_map.map[&node.up2()].get().expect("Previous level was not evaluated");
+                let down_value = self.tree_map.map[&node.down()].get().expect("Previous level was not evaluated");
 
                 let value = (up_value * p + down_value * (1.0 - p)) * self.discount_factor;
                 let price = node.value(self.spot.0, self.params.u, self.params.d);
@@ -52,13 +52,25 @@ impl BinomialTreeModel {
 
         let value = self.tree_map.map[&NodeName{ name: vec![] }].get().unwrap();
 
+
         Greeks {
             value: Value(*value),
-            delta: Delta(0.0),
-            gamma: Gamma(0.0),
+            delta: self.delta(),
+            gamma: Gamma(0.0), // TODO
         }
     }
 
+    // The tree should already be valued before calling this
+    fn delta(&self) -> Delta {
+        let last_up = NodeName{ name: vec![UpDown::Up] };
+        let last_up_value = self.tree_map.map[&last_up].get().unwrap();
+        let last_down = NodeName{ name: vec![UpDown::Down] };
+        let last_down_value = self.tree_map.map[&last_down].get().unwrap();
+        let delta = (last_up_value - last_down_value) /
+            (last_up.value(self.spot.0, self.params.u, self.params.d) - last_down.value(self.spot.0, self.params.u, self.params.d));
+
+        Delta(delta)
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -87,43 +99,54 @@ mod tests {
     fn test_binomial_tree_european_call() {
         let model = BinomialTreeModel::new(Spot(100.0), 2, Expiry(0.5), 0.3, 0.05, 0.0);
         let option = EuropeanOption::new(OptionType::Call, 95.0, 0.5);
-        assert_eq!(model.value(option).value, Value(12.357803))
+        let greeks = model.value(option);
+        assert_eq!(greeks.value, Value(12.357803));
+        assert_eq!(greeks.delta, Delta(0.6599609));
     }
 
     #[test]
     fn test_binomial_tree_european_call2() {
         let model = BinomialTreeModel::new(Spot(810.0), 2, Expiry(0.5), 0.2, 0.05, 0.02);
         let option = EuropeanOption::new(OptionType::Call, 800.0, 0.5);
-        assert_eq!(model.value(option).value, Value(53.39472));
+        let greeks = model.value(option);
+        assert_eq!(greeks.value, Value(53.39472));
+        assert_eq!(greeks.delta, Delta(0.58913547));
     }
 
     #[test]
     fn test_binomial_tree_european_call3() {
         let model = BinomialTreeModel::new(Spot(0.61), 3, Expiry(0.25), 0.12, 0.05, 0.07);
         let option = EuropeanOption::new(OptionType::Call, 0.6, 0.25);
-        assert_eq!(model.value(option).value, Value(0.018597351));
+        let greeks = model.value(option);
+        assert_eq!(greeks.value, Value(0.018597351));
+        assert_eq!(greeks.delta, Delta(0.6000445));
     }
 
     #[test]
     fn test_binomial_tree_european_put1() {
         let model = BinomialTreeModel::new(Spot(50.0), 2, Expiry(2.0), 0.3, 0.05, 0.0);
         let option = EuropeanOption::new(OptionType::Put, 52.0, 2.0);
-        assert_eq!(model.value(option).value, Value(6.2457113));
+        let greeks = model.value(option);
+        assert_eq!(greeks.value, Value(6.2457113));
+        assert_eq!(greeks.delta, Delta(-0.37732533));
     }
 
     #[test]
     fn test_binomial_tree_american_put1() {
         let model = BinomialTreeModel::new(Spot(50.0), 2, Expiry(2.0), 0.3, 0.05, 0.0);
         let option = AmericanOption::new(OptionType::Put, 52.0, 2.0);
-        assert_eq!(model.value(option).value, Value(7.428405));
+        let greeks = model.value(option);
+        assert_eq!(greeks.value, Value(7.428405));
+        assert_eq!(greeks.delta, Delta(-0.4606061));
     }
 
     #[test]
     fn test_binomial_tree_american_put2() {
         let model = BinomialTreeModel::new(Spot(31.0), 3, Expiry(0.75), 0.3, 0.05, 0.05);
         let option = AmericanOption::new(OptionType::Put, 30.0, 0.75);
-        let val = model.value(option);
-        assert_eq!(val.value, Value(2.8356347));
+        let greeks = model.value(option);
+        assert_eq!(greeks.value, Value(2.8356347));
+        assert_eq!(greeks.delta, Delta(-0.38601997));
         //assert_eq!(val.risk_free_probability, 0.4626);
     }
 
@@ -131,7 +154,8 @@ mod tests {
     fn test_binomial_tree_american_put2_100steps() {
         let model = BinomialTreeModel::new(Spot(31.0), 100, Expiry(0.75), 0.3, 0.05, 0.05);
         let option = AmericanOption::new(OptionType::Put, 30.0, 0.75);
-        let val = model.value(option);
-        assert_eq!(val.value, Value(2.604315));
+        let greeks = model.value(option);
+        assert_eq!(greeks.value, Value(2.604315));
+        assert_eq!(greeks.delta, Delta(-0.38875514));
     }
 }

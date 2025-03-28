@@ -1,3 +1,5 @@
+use std::iter::Rev;
+use std::slice::Iter;
 use crate::tree::{UpDown, NodeName};
 use hashbrown::HashMap;
 use itertools::{Itertools, sorted};
@@ -8,7 +10,7 @@ const ALL_UPDOWNS: [UpDown; 2] = [UpDown::Up, UpDown::Down];
 
 pub(crate) struct BinomialTreeMap {
     pub(crate) map: HashMap<NodeName, OnceLock<f32>>,
-    pub(crate) stack: Vec<Vec<NodeName>>,
+    stack: Vec<Vec<NodeName>>,
 }
 
 impl BinomialTreeMap {
@@ -38,6 +40,22 @@ impl BinomialTreeMap {
             map,
             stack,
         }
+    }
+
+    pub(crate) fn iter(&self) -> BinomialTreeMapIterator<'_> {
+        BinomialTreeMapIterator{iter: self.stack.iter().rev()}
+    }
+}
+
+pub(crate) struct BinomialTreeMapIterator<'a> {
+    iter: Rev<Iter<'a, Vec<NodeName>>>
+}
+
+impl<'a> Iterator for BinomialTreeMapIterator<'a> {
+    type Item = &'a Vec<NodeName>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next()
     }
 }
 

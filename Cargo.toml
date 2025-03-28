@@ -13,6 +13,3 @@ hashbrown = { version = "0.15.2", features = ["rayon"] }
 itertools = "0.14.0"
 rayon = "1.10.0"
 
-
-[profile.release]
-strip = false
