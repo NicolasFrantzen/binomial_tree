@@ -9,7 +9,6 @@ harness = false
 
 [dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }
-foldhash = "0.1.5"
 hashbrown = { version = "0.15.2", features = ["rayon"] }
 itertools = "0.14.0"
 rayon = "1.10.0"

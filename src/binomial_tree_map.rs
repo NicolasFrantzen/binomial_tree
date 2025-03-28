@@ -1,25 +1,22 @@
 use crate::tree::{UpDown, NodeName};
-//use std::collections::HashMap;
 use hashbrown::HashMap;
-//use hashbrown::hash_map::rayon::*;
-//use rayon::iter::IntoParallelRefIterator;
 use itertools::{Itertools, sorted};
 
-use std::cell::OnceCell;
+use std::sync::OnceLock;
 
 const ALL_UPDOWNS: [UpDown; 2] = [UpDown::Up, UpDown::Down];
 
 pub(crate) struct BinomialTreeMap {
-    pub(crate) map: HashMap<NodeName, OnceCell<f32>>,
+    pub(crate) map: HashMap<NodeName, OnceLock<f32>>,
     pub(crate) stack: Vec<Vec<NodeName>>,
 }
 
 impl BinomialTreeMap {
     pub(crate) fn new(number_of_steps: usize) -> Self {
-        let mut map = HashMap::<NodeName, OnceCell<f32>>::new();
+        let mut map = HashMap::<NodeName, OnceLock<f32>>::new();
         let mut stack: Vec<Vec<NodeName>> = vec![];
 
-        let _ = map.try_insert(NodeName{name: vec![]}, OnceCell::new());
+        let _ = map.try_insert(NodeName{name: vec![]}, OnceLock::new());
         stack.push(vec![NodeName{name: vec![]}]);
 
         for i in 1..=number_of_steps {
@@ -30,7 +27,7 @@ impl BinomialTreeMap {
                 .map(|x| NodeName { name: x });
 
             for u in sorted(iter.clone()) {
-                let _ = map.try_insert(u, OnceCell::new()); // TODO: insert_unique_unchecked might be ok here
+                let _ = map.try_insert(u, OnceLock::new()); // TODO: insert_unique_unchecked might be ok here
             }
             stack.push(iter.collect()); // TODO: These needs to be sorted
             //println!("{:?}", &stack);

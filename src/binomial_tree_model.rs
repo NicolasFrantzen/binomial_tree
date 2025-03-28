@@ -3,10 +3,7 @@ use crate::binomial_tree_map::BinomialTreeMap;
 use crate::instruments::Option_;
 use crate::tree::NodeName;
 
-use hashbrown::hash_map::rayon::*;
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator};
-use rayon::iter::*;
-use rayon::prelude::*;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 pub struct BinomialTreeModel {
     tree_map: BinomialTreeMap,
@@ -28,14 +25,10 @@ impl BinomialTreeModel {
         }
     }
 
-    pub fn value<T: Option_>(&self, option: T) -> Greeks {
-        let mut iter = self.tree_map.stack.iter();
+    pub fn value<T: Option_ + Sync>(&self, option: T) -> Greeks {
+        let mut stack_iter = self.tree_map.stack.iter().rev();
 
-        let first_node_level = &iter.last();
-
-        // TODO: Here we have assumed that the length is bigger than 1
-
-        for node in first_node_level.unwrap() {
+        for node in stack_iter.next().expect("The tree must have length at least 1") {
             let price = node.value(self.spot.0, self.params.u, self.params.d);
 
             // TODO: Handle some unwraps here
@@ -44,29 +37,18 @@ impl BinomialTreeModel {
 
         let p = self.params.p();
 
-        self.tree_map.stack.par_iter().for_each(|_| () );
-
-        //for node_level in self.tree_map.stack.iter().rev() {
-        self.tree_map.stack.par_iter().for_each(|node_level|
-            // let value = ((up.borrow().value.get() * p) + (down.borrow().value.get() * (1.0 - p))) * self.discount_factor;
-            //                     node.borrow().value.set(option.value(value, branch_price));
-            for node in node_level {
-                let mut up_value: f32 = 0.0; // TODO: Put in function
-                if let Some(up) = self.tree_map.map.get(&node.up2()) {
-                    up_value = *up.get().unwrap();
-                }
-                else { panic!("Incomplete tree. Missing: {:?} ", node.up2()); }
-
-                //let up_value = self.tree_map.map[&node.up()].get().expect("Previous level was evaluated"); // TODO: Fix unwrap
-                let down_value = self.tree_map.map[&node.down()].get().expect("Previous level was evaluated"); // TODO: Fix unwrap
+        for node_level in stack_iter {
+            node_level.par_iter().rev().for_each(|node| {
+                let up_value = self.tree_map.map[&node.up2()].get().expect("Previous level was not evaluated"); // TODO: Fix unwrap
+                let down_value = self.tree_map.map[&node.down()].get().expect("Previous level was not evaluated"); // TODO: Fix unwrap
 
                 let value = (up_value * p + down_value * (1.0 - p)) * self.discount_factor;
                 let price = node.value(self.spot.0, self.params.u, self.params.d);
                 let option_value = option.value(value, price);
 
-                self.tree_map.map[node].set(value).unwrap();
-            }
-        );
+                self.tree_map.map[node].set(option_value).unwrap();
+            });
+        }
 
         let value = self.tree_map.map[&NodeName{ name: vec![] }].get().unwrap();
 
@@ -97,12 +79,15 @@ pub struct Gamma(pub f32);
 
 #[cfg(test)]
 mod tests {
-    use crate::instruments::{EuropeanOption, OptionType};
+    use crate::instruments::{AmericanOption, EuropeanOption, OptionType};
     use super::*;
 
-    #[test]
-    fn test_stack_map() {
 
+    #[test]
+    fn test_binomial_tree_european_call() {
+        let model = BinomialTreeModel::new(Spot(100.0), 2, Expiry(0.5), 0.3, 0.05, 0.0);
+        let option = EuropeanOption::new(OptionType::Call, 95.0, 0.5);
+        assert_eq!(model.value(option).value, Value(12.357803))
     }
 
     #[test]
@@ -110,5 +95,43 @@ mod tests {
         let model = BinomialTreeModel::new(Spot(810.0), 2, Expiry(0.5), 0.2, 0.05, 0.02);
         let option = EuropeanOption::new(OptionType::Call, 800.0, 0.5);
         assert_eq!(model.value(option).value, Value(53.39472));
+    }
+
+    #[test]
+    fn test_binomial_tree_european_call3() {
+        let model = BinomialTreeModel::new(Spot(0.61), 3, Expiry(0.25), 0.12, 0.05, 0.07);
+        let option = EuropeanOption::new(OptionType::Call, 0.6, 0.25);
+        assert_eq!(model.value(option).value, Value(0.018597351));
+    }
+
+    #[test]
+    fn test_binomial_tree_european_put1() {
+        let model = BinomialTreeModel::new(Spot(50.0), 2, Expiry(2.0), 0.3, 0.05, 0.0);
+        let option = EuropeanOption::new(OptionType::Put, 52.0, 2.0);
+        assert_eq!(model.value(option).value, Value(6.2457113));
+    }
+
+    #[test]
+    fn test_binomial_tree_american_put1() {
+        let model = BinomialTreeModel::new(Spot(50.0), 2, Expiry(2.0), 0.3, 0.05, 0.0);
+        let option = AmericanOption::new(OptionType::Put, 52.0, 2.0);
+        assert_eq!(model.value(option).value, Value(7.428405));
+    }
+
+    #[test]
+    fn test_binomial_tree_american_put2() {
+        let model = BinomialTreeModel::new(Spot(31.0), 3, Expiry(0.75), 0.3, 0.05, 0.05);
+        let option = AmericanOption::new(OptionType::Put, 30.0, 0.75);
+        let val = model.value(option);
+        assert_eq!(val.value, Value(2.8356347));
+        //assert_eq!(val.risk_free_probability, 0.4626);
+    }
+
+    #[test]
+    fn test_binomial_tree_american_put2_100steps() {
+        let model = BinomialTreeModel::new(Spot(31.0), 100, Expiry(0.75), 0.3, 0.05, 0.05);
+        let option = AmericanOption::new(OptionType::Put, 30.0, 0.75);
+        let val = model.value(option);
+        assert_eq!(val.value, Value(2.604315));
     }
 }
