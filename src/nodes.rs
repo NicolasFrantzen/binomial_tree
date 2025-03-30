@@ -66,14 +66,12 @@ impl NodeName {
     }
 
     pub(crate) fn up(&self) -> NodeName {
-        NodeName{name: self.name.iter().chain(once(&UpDown::Up)).cloned().collect()}
-    }
-
-    pub(crate) fn up2(&self) -> NodeName {
-        NodeName{name: sorted(self.name.iter().chain(once(&UpDown::Up)).cloned()).collect()}
+        // NOTE: Prepending is equivalent with sorting if downs are appended
+        NodeName{ name: once(UpDown::Up).chain(self.name.iter().cloned()).collect() }
     }
 
     pub(crate) fn down(&self) -> NodeName {
+        // NOTE: Appending is equivalent with sorting if ups are prepended
         NodeName{name: self.name.iter().chain(once(&UpDown::Down)).cloned().collect()}
     }
 }
@@ -124,7 +122,7 @@ mod tests {
         assert_eq!(up_name.down(), NodeName { name: vec![UpDown::Up, UpDown::Down] });
 
         let down_name = name.down();
-        assert_eq!(down_name.up(), NodeName { name: vec![UpDown::Down, UpDown::Up] });
-        assert_eq!(down_name.up2(), NodeName { name: vec![UpDown::Up, UpDown::Down] });
+        assert_eq!(down_name.up(), NodeName { name: vec![UpDown::Up, UpDown::Down] });
+        assert_eq!(down_name.down(), NodeName { name: vec![UpDown::Down, UpDown::Down] });
     }
 }

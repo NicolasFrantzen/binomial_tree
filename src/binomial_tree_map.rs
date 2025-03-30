@@ -1,24 +1,35 @@
-use std::iter::Rev;
-use std::slice::Iter;
 use crate::nodes::{UpDown, NodeName};
 use hashbrown::HashMap;
 use itertools::{Itertools, sorted};
 
+use std::iter::Rev;
+use std::slice::Iter;
 use std::sync::OnceLock;
 
 const ALL_UPDOWNS: [UpDown; 2] = [UpDown::Up, UpDown::Down];
 
 pub(crate) struct BinomialTreeMap {
-    pub(crate) map: HashMap<NodeName, OnceLock<f32>>,
+    pub(crate) map: HashMap<NodeName, OnceLock<f32>>, // TODO: Encapsulate this
     stack: Vec<Vec<NodeName>>,
+}
+
+
+// A special case of binomial formula with k = 2 and n = number_of_steps + 2
+const fn calculate_capacity(number_of_steps: usize) -> usize {
+    let mut res = 1;
+    let n = number_of_steps + 2;
+    res = (res * (n - 0)) / (n + 0);
+    res = (res * (n - 1)) / (n + 1);
+
+    res
 }
 
 impl BinomialTreeMap {
     pub(crate) fn new(number_of_steps: usize) -> Self {
-        let mut map = HashMap::<NodeName, OnceLock<f32>>::new();
+        let mut map = HashMap::<NodeName, OnceLock<f32>>::with_capacity(calculate_capacity(number_of_steps));
         let mut stack: Vec<Vec<NodeName>> = vec![];
 
-        let _ = map.try_insert(NodeName{name: vec![]}, OnceLock::new());
+        let _ = map.insert(NodeName{name: vec![]}, OnceLock::new());
         stack.push(vec![NodeName{name: vec![]}]);
 
         for i in 1..=number_of_steps {
@@ -31,7 +42,7 @@ impl BinomialTreeMap {
             for u in sorted(iter.clone()) {
                 // NOTE: Unsafe is fine here, since we insert unique combinations
                 unsafe {
-                    let _ = map.insert_unique_unchecked(u, OnceLock::new()); // TODO: insert_unique_unchecked might be ok here
+                    let _ = map.insert_unique_unchecked(u, OnceLock::new());
                 }
             }
             stack.push(iter.collect()); // TODO: These needs to be sorted
@@ -66,19 +77,10 @@ impl<'a> Iterator for BinomialTreeMapIterator<'a> {
 mod tests {
     use super::*;
 
-    fn binom(n: u32, k: u32) -> u32 {
-        let mut res = 1;
-        for i in 0..k {
-            res = (res * (n - i)) /
-                (i + 1);
-        }
-        res
-    }
-
     #[test]
     fn test_stack_map_size() {
         for i in 3..20 {
-            assert_eq!(BinomialTreeMap::new(i).map.len(), binom((i as u32) + 2, 2) as usize);
+            assert_eq!(BinomialTreeMap::new(i).map.len(), calculate_capacity(i));
         }
     }
 

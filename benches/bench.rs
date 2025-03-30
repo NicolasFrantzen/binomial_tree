@@ -1,5 +1,5 @@
-use HullBinominalModel::binomial_tree_model::{BinomialTreeModel, Expiry, Spot};
-use HullBinominalModel::instruments::{EuropeanOption, OptionType, Option_, AmericanOption};
+use binominal_tree_model::binomial_tree_model::{BinomialTreeModel, Expiry, Spot};
+use binominal_tree_model::instruments::{EuropeanOption, OptionType, Option_, AmericanOption};
 
 use criterion::{criterion_group, criterion_main, Criterion};
 //use std::hint::black_box;

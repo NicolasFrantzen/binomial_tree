@@ -38,18 +38,18 @@ impl BinomialTreeModel {
 
         for node_level in stack_iter {
             node_level.par_iter().rev().for_each(|node| {
-                let up_value = self.tree_map.map[&node.up2()].get().expect("Previous level was not evaluated");
-                let down_value = self.tree_map.map[&node.down()].get().expect("Previous level was not evaluated");
+                let up_value = self.tree_map.map.get(&node.up()).unwrap().get().expect("Previous level was not evaluated");
+                let down_value = self.tree_map.map.get(&node.down()).unwrap().get().expect("Previous level was not evaluated");
 
                 let value = (up_value * p + down_value * (1.0 - p)) * self.discount_factor;
                 let price = node.value(self.spot.0, self.params.u, self.params.d);
                 let option_value = option.value(value, price);
 
-                self.tree_map.map[node].set(option_value).unwrap();
+                self.tree_map.map.get(node).unwrap().set(option_value).unwrap();
             });
         }
 
-        let value = self.tree_map.map[&NodeName{ name: vec![] }].get().unwrap();
+        let value = self.tree_map.map.get(&NodeName{ name: vec![] }).unwrap().get().unwrap();
 
 
         Greeks {
@@ -59,12 +59,12 @@ impl BinomialTreeModel {
         }
     }
 
-    // The tree should already be valued before calling this
+    // TODO: Enforce that the tree should already be valued before calling this
     fn delta(&self) -> Delta {
         let last_up = NodeName{ name: vec![UpDown::Up] };
-        let last_up_value = self.tree_map.map[&last_up].get().unwrap();
+        let last_up_value =  self.tree_map.map.get(&last_up).unwrap().get().unwrap();
         let last_down = NodeName{ name: vec![UpDown::Down] };
-        let last_down_value = self.tree_map.map[&last_down].get().unwrap();
+        let last_down_value = self.tree_map.map.get(&last_down).unwrap().get().unwrap();
         let delta = (last_up_value - last_down_value) /
             (last_up.value(self.spot.0, self.params.u, self.params.d) - last_down.value(self.spot.0, self.params.u, self.params.d));
 

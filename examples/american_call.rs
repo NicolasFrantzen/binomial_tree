@@ -1,5 +1,5 @@
-use HullBinominalModel::binomial_tree_model::{BinomialTreeModel, Expiry, Spot};
-use HullBinominalModel::instruments::{AmericanOption, Option_, OptionType};
+use binominal_tree_model::binomial_tree_model::{BinomialTreeModel, Expiry, Spot};
+use binominal_tree_model::instruments::{AmericanOption, Option_, OptionType};
 
 fn main() {
     let number_of_steps: usize = std::env::args().nth(1).expect("No number of steps given").parse::<usize>().unwrap();
