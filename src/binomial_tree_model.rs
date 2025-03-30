@@ -1,7 +1,6 @@
-use crate::binomial_tree::{Expiry, Spot, VolatilityParameters};
 use crate::binomial_tree_map::BinomialTreeMap;
 use crate::instruments::Option_;
-use crate::tree::{NodeName, UpDown};
+use crate::nodes::{NodeName, UpDown};
 
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
@@ -70,6 +69,32 @@ impl BinomialTreeModel {
             (last_up.value(self.spot.0, self.params.u, self.params.d) - last_down.value(self.spot.0, self.params.u, self.params.d));
 
         Delta(delta)
+    }
+}
+
+
+pub struct Spot(pub f32);
+pub struct Expiry(pub f32);
+
+#[derive(Copy, Clone)]
+pub struct VolatilityParameters {
+    a: f32,
+    pub(crate) u: f32,
+    pub(crate) d: f32,
+}
+
+impl VolatilityParameters {
+    pub fn new(volatility: f32, interest_rate: f32, dividends: f32, timestep: f32) -> VolatilityParameters {
+        let u= (volatility*timestep.sqrt()).exp();
+        VolatilityParameters {
+            a: ((interest_rate - dividends) * timestep).exp(),
+            u,
+            d: 1.0 / u,
+        }
+    }
+
+    pub(crate) fn p(&self) -> f32 {
+        (self.a - self.d)/(self.u - self.d)
     }
 }
 

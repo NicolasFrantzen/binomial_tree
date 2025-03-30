@@ -1,6 +1,6 @@
 use std::iter::Rev;
 use std::slice::Iter;
-use crate::tree::{UpDown, NodeName};
+use crate::nodes::{UpDown, NodeName};
 use hashbrown::HashMap;
 use itertools::{Itertools, sorted};
 
@@ -29,7 +29,10 @@ impl BinomialTreeMap {
                 .map(|x| NodeName { name: x });
 
             for u in sorted(iter.clone()) {
-                let _ = map.try_insert(u, OnceLock::new()); // TODO: insert_unique_unchecked might be ok here
+                // NOTE: Unsafe is fine here, since we insert unique combinations
+                unsafe {
+                    let _ = map.insert_unique_unchecked(u, OnceLock::new()); // TODO: insert_unique_unchecked might be ok here
+                }
             }
             stack.push(iter.collect()); // TODO: These needs to be sorted
             //println!("{:?}", &stack);
@@ -62,6 +65,22 @@ impl<'a> Iterator for BinomialTreeMapIterator<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn binom(n: u32, k: u32) -> u32 {
+        let mut res = 1;
+        for i in 0..k {
+            res = (res * (n - i)) /
+                (i + 1);
+        }
+        res
+    }
+
+    #[test]
+    fn test_stack_map_size() {
+        for i in 3..20 {
+            assert_eq!(BinomialTreeMap::new(i).map.len(), binom((i as u32) + 2, 2) as usize);
+        }
+    }
 
     #[test]
     fn test_stack_map() {
