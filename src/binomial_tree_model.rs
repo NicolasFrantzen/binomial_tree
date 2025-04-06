@@ -25,27 +25,29 @@ impl BinomialTreeModel {
     }
 
     pub fn value<T: Option_ + Sync>(&self, option: T) -> Greeks {
-        let mut stack_iter = self.tree_map.iter();
-
-        for node in stack_iter.next().expect("The tree must have length at least 1") {
-            let price = node.value(self.spot.0, self.params.u, self.params.d);
-
-            // TODO: Handle some unwraps here
-            self.tree_map.map.get(node).unwrap().set(option.payoff(price)).unwrap();
-        }
-
         let p = self.params.p();
 
-        for node_level in stack_iter {
+        for node_level in self.tree_map.iter() {
             node_level.par_iter().rev().for_each(|node| {
-                let up_value = self.tree_map.map.get(&node.up()).unwrap().get().expect("Previous level was not evaluated");
-                let down_value = self.tree_map.map.get(&node.down()).unwrap().get().expect("Previous level was not evaluated");
+                let up_value = self.tree_map.map.get(&node.up());
+                let down_value = self.tree_map.map.get(&node.down());
 
-                let value = (up_value * p + down_value * (1.0 - p)) * self.discount_factor;
                 let price = node.value(self.spot.0, self.params.u, self.params.d);
-                let option_value = option.value(value, price);
 
-                self.tree_map.map.get(node).unwrap().set(option_value).unwrap();
+                if let (Some(up_value), Some(down_value)) = (up_value, down_value) {
+                    let up_value = up_value.wait();
+                    let down_value = down_value.wait();
+                    let value = (up_value * p + down_value * (1.0 - p)) * self.discount_factor;
+
+                    let option_value = option.value(value, price);
+
+                    self.tree_map.map.get(node).unwrap().set(option_value).unwrap();
+                }
+                else {
+                    // TODO: Handle some unwraps here
+                    self.tree_map.map.get(node).unwrap().set(option.payoff(price)).unwrap();
+                }
+
             });
         }
 
