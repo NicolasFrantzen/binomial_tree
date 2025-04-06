@@ -1,5 +1,3 @@
-use itertools::sorted;
-
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 use std::iter::once;

@@ -58,6 +58,7 @@ impl BinomialTreeModel {
             value: Value(*value),
             delta: self.delta(),
             gamma: Gamma(0.0), // TODO
+            theta: Theta(0.0), // TODO
         }
     }
 
@@ -105,6 +106,7 @@ pub struct Greeks {
     value: Value,
     delta: Delta,
     gamma: Gamma,
+    theta: Theta,
 }
 
 #[derive(Debug, PartialEq)]
@@ -115,6 +117,9 @@ pub struct Delta(pub f32);
 
 #[derive(Debug, PartialEq)]
 pub struct Gamma(pub f32);
+
+#[derive(Debug, PartialEq)]
+pub struct Theta(pub f32);
 
 #[cfg(test)]
 mod tests {

@@ -1,6 +1,6 @@
 use crate::nodes::{UpDown, NodeName};
 use hashbrown::HashMap;
-use itertools::{Itertools, sorted};
+use itertools::Itertools;
 
 use std::iter::Rev;
 use std::slice::Iter;
@@ -27,7 +27,7 @@ const fn calculate_capacity(number_of_steps: usize) -> usize {
 impl BinomialTreeMap {
     pub(crate) fn new(number_of_steps: usize) -> Self {
         let mut map = HashMap::<NodeName, OnceLock<f32>>::with_capacity(calculate_capacity(number_of_steps));
-        let mut stack: Vec<Vec<NodeName>> = vec![];
+        let mut stack: Vec<Vec<NodeName>> = Vec::with_capacity(number_of_steps);
 
         let _ = map.insert(NodeName{name: vec![]}, OnceLock::new());
         stack.push(vec![NodeName{name: vec![]}]);
@@ -39,10 +39,10 @@ impl BinomialTreeMap {
                 .combinations_with_replacement(i)
                 .map(|x| NodeName { name: x });
 
-            for u in sorted(iter.clone()) {
+            for node_name in iter.clone() {
                 // NOTE: Unsafe is fine here, since we insert unique combinations
                 unsafe {
-                    let _ = map.insert_unique_unchecked(u, OnceLock::new());
+                    let _ = map.insert_unique_unchecked(node_name, OnceLock::new());
                 }
             }
             stack.push(iter.collect()); // TODO: These needs to be sorted
