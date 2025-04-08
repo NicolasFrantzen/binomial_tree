@@ -2,6 +2,9 @@ use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 use std::iter::once;
 
+pub(crate) static ALL_UPDOWNS: [UpDown; 2] = [UpDown::Up, UpDown::Down];
+pub(crate) static INITIAL_NODE: NodeName = NodeName{ name: vec![] };
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) enum UpDown {
     Initial,
@@ -40,7 +43,7 @@ impl TryFrom<char> for UpDown {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Clone)]
 pub(crate) struct NodeName {
     pub name: Vec<UpDown>,
 }
