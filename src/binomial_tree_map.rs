@@ -1,10 +1,11 @@
-use crate::nodes::{ALL_UPDOWNS, INITIAL_NODE, NodeName};
-use hashbrown::HashMap;
-use itertools::Itertools;
-
 use std::iter::Rev;
 use std::slice::Iter;
 use std::sync::OnceLock;
+
+use hashbrown::HashMap;
+use itertools::Itertools;
+
+use crate::nodes::{ALL_UPDOWNS, NodeName};
 
 pub(crate) struct BinomialTreeMap {
     // Map consists of sorted keys only (with U < D). For example: UUUDD. Values are OnceLock, so they can be replaced without mutable borrowing
@@ -28,10 +29,7 @@ impl BinomialTreeMap {
         let mut map = HashMap::<NodeName, OnceLock<f32>>::with_capacity(calculate_capacity(number_of_steps));
         let mut stack: Vec<Vec<NodeName>> = Vec::with_capacity(number_of_steps);
 
-        let _ = map.insert(INITIAL_NODE.clone(), OnceLock::new());
-        stack.push(vec![INITIAL_NODE.clone()]);
-
-        for i in 1..=number_of_steps {
+        for i in 0..=number_of_steps {
             let iter = ALL_UPDOWNS
                 .iter()
                 .cloned()

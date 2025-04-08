@@ -8,12 +8,22 @@ use std::time::Duration;
 
 fn european_call(n: u32) {
     let binom_tree = BinomialTreeModel::new(Spot(100.0), n as usize, Expiry(0.5), 0.3, 0.05, 0.0);
-    let _val = binom_tree.value(EuropeanOption::new(OptionType::Call, 95.0, 0.5));
+    let _val = binom_tree.eval(EuropeanOption::new(OptionType::Call, 95.0, 0.5));
 }
 
 fn american_call(n: u32) {
     let binom_tree = BinomialTreeModel::new(Spot(100.0), n as usize, Expiry(0.5), 0.3, 0.05, 0.0);
-    let _val = binom_tree.value(AmericanOption::new(OptionType::Call, 95.0, 0.5));
+    let _val = binom_tree.eval(AmericanOption::new(OptionType::Call, 95.0, 0.5));
+}
+
+fn european_call_greeks(n: u32) {
+    let binom_tree = BinomialTreeModel::new(Spot(100.0), n as usize, Expiry(0.5), 0.3, 0.05, 0.0);
+    let _val = binom_tree.eval(EuropeanOption::new(OptionType::Call, 95.0, 0.5));
+}
+
+fn american_call_greeks(n: u32) {
+    let binom_tree = BinomialTreeModel::new(Spot(100.0), n as usize, Expiry(0.5), 0.3, 0.05, 0.0);
+    let _val = binom_tree.eval(AmericanOption::new(OptionType::Call, 95.0, 0.5));
 }
 
 fn criterion_benchmark_method(c: &mut Criterion) {
@@ -21,6 +31,8 @@ fn criterion_benchmark_method(c: &mut Criterion) {
 
     group.bench_function("european call threaded", |b| b.iter(|| european_call(100)));
     group.bench_function("american call threaded", |b| b.iter(|| american_call(100)));
+    group.bench_function("european call greeks threaded", |b| b.iter(|| european_call_greeks(100)));
+    group.bench_function("american call greeks threaded", |b| b.iter(|| american_call_greeks(100)));
     group.finish();
 }
 
