@@ -29,15 +29,17 @@ fn american_call_greeks(n: u32) {
 fn criterion_benchmark_method(c: &mut Criterion) {
     let mut group = c.benchmark_group("Option benches");
 
-    group.bench_function("european call threaded", |b| b.iter(|| european_call(100)));
-    group.bench_function("american call threaded", |b| b.iter(|| american_call(100)));
-    group.bench_function("european call greeks threaded", |b| b.iter(|| european_call_greeks(100)));
-    group.bench_function("american call greeks threaded", |b| b.iter(|| american_call_greeks(100)));
+    group.bench_function("european call value 100 steps", |b| b.iter(|| european_call(100)));
+    group.bench_function("american call value 100 steps", |b| b.iter(|| american_call(100)));
+    group.bench_function("european call greeks 100 steps", |b| b.iter(|| european_call_greeks(100)));
+    group.bench_function("american call greeks 100 steps", |b| b.iter(|| american_call_greeks(100)));
+    group.bench_function("european call greeks 10 steps", |b| b.iter(|| european_call_greeks(10)));
+    group.bench_function("american call greeks 10 steps", |b| b.iter(|| american_call_greeks(10)));
     group.finish();
 }
 
 fn alternate_measurement() -> Criterion<> {
-    Criterion::default().measurement_time(Duration::from_millis(200)).sample_size(40)
+    Criterion::default().measurement_time(Duration::from_millis(300)).sample_size(40)
 }
 
 criterion_group!(
