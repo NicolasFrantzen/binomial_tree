@@ -1,6 +1,6 @@
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
-use crate::binomial_tree_map::BinomialTreeMap;
+use crate::binomial_tree_map::{BinomialTree, BinomialTreeMap};
 use crate::instruments::Option_;
 use crate::nodes::{INITIAL_NODE, NodeName};
 
@@ -31,8 +31,8 @@ impl BinomialTreeModel {
 
         for node_level in self.tree_map.iter() {
             node_level.par_iter().rev().for_each(|node| {
-                let up_value = self.tree_map.map.get(&node.up());
-                let down_value = self.tree_map.map.get(&node.down());
+                let up_value = self.tree_map.get(&node.up());
+                let down_value = self.tree_map.get(&node.down());
 
                 let price = node.value(self.spot.0, self.params.u, self.params.d);
 
@@ -43,11 +43,11 @@ impl BinomialTreeModel {
 
                     let option_value = option.value(value, price);
 
-                    self.tree_map.map.get(node).unwrap().set(option_value).unwrap();
+                    self.tree_map.set(node, option_value);
                 }
                 else {
                     // TODO: Handle some unwraps here
-                    self.tree_map.map.get(node).unwrap().set(option.payoff(price)).unwrap();
+                    self.tree_map.set(node, option.payoff(price));
                 }
 
             });
@@ -64,7 +64,7 @@ pub struct EvaluatedBinomialTreeModel {
 impl EvaluatedBinomialTreeModel {
     pub fn value(&self) -> Value
     {
-        let value = self.model.tree_map.map.get(&INITIAL_NODE).unwrap().get().unwrap();
+        let value = self.model.tree_map.get(&INITIAL_NODE).unwrap().get().unwrap();
         Value(*value)
     }
 
@@ -74,9 +74,9 @@ impl EvaluatedBinomialTreeModel {
 
     fn delta_from(&self, from_node: &NodeName) -> Delta {
         let last_up = from_node.up();
-        let last_up_value =  self.model.tree_map.map.get(&last_up).unwrap().get().unwrap();
+        let last_up_value =  self.model.tree_map.get(&last_up).unwrap().get().unwrap();
         let last_down = from_node.down();
-        let last_down_value = self.model.tree_map.map.get(&last_down).unwrap().get().unwrap();
+        let last_down_value = self.model.tree_map.get(&last_down).unwrap().get().unwrap();
         let delta = (last_up_value - last_down_value) /
             (last_up.value(self.model.spot.0, self.model.params.u, self.model.params.d) - last_down.value(
                 self.model.spot.0,
@@ -92,8 +92,8 @@ impl EvaluatedBinomialTreeModel {
         let node_d = INITIAL_NODE.down();
         let delta_u = self.delta_from(&node_u);
         let delta_d = self.delta_from(&node_d);
-        let spot_u = self.model.tree_map.map.get(&node_u).unwrap().get().unwrap();
-        let spot_d = self.model.tree_map.map.get(&node_d).unwrap().get().unwrap();
+        let spot_u = self.model.tree_map.get(&node_u).unwrap().get().unwrap();
+        let spot_d = self.model.tree_map.get(&node_d).unwrap().get().unwrap();
 
         if spot_u == spot_d {
             Gamma(0.0)
@@ -104,8 +104,8 @@ impl EvaluatedBinomialTreeModel {
     }
 
     pub fn theta(&self) -> Theta {
-        let val_0 = self.model.tree_map.map.get(&INITIAL_NODE).unwrap().get().unwrap();
-        let val_2 = self.model.tree_map.map.get(&INITIAL_NODE.up().down()).unwrap().get().unwrap();
+        let val_0 = self.model.tree_map.get(&INITIAL_NODE).unwrap().get().unwrap();
+        let val_2 = self.model.tree_map.get(&INITIAL_NODE.up().down()).unwrap().get().unwrap();
 
         Theta((val_2 - val_0) / (2.0 * self.model.time_step))
     }

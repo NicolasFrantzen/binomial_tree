@@ -4,24 +4,43 @@ use std::sync::OnceLock;
 
 use hashbrown::HashMap;
 use itertools::Itertools;
-
+use num::integer::binomial;
 use crate::nodes::{ALL_UPDOWNS, NodeName};
+
+pub(crate) trait BinomialTree {
+    type NodeNameType;
+    type ValueType;
+    type NodeType<T>;
+
+    fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType<Self::ValueType>>;
+    fn set(&self, node_name: &Self::NodeNameType, value: Self::ValueType);
+    //fn get_up(&self);
+    //fn get_down(&self);
+}
+
+type BinomialTreeMapNumericType = f32;
+type BinomialTreeMapValue<T> = OnceLock<T>;
 
 pub(crate) struct BinomialTreeMap {
     // Map consists of sorted keys only (with U < D). For example: UUUDD. Values are OnceLock, so they can be replaced without mutable borrowing
-    pub(crate) map: HashMap<NodeName, OnceLock<f32>>, // TODO: Encapsulate this
+    map: HashMap<NodeName, BinomialTreeMapValue<BinomialTreeMapNumericType>>,
     stack: Vec<Vec<NodeName>>, // TODO: Fix this, it's quite expensive to construct
 }
 
 
 // A special case of binomial formula with k = 2 and n = number_of_steps + 2
-const fn calculate_capacity(number_of_steps: usize) -> usize {
-    let mut res = 1;
-    let n = number_of_steps + 2;
-    res = (res * (n - 0)) / (n + 0);
-    res = (res * (n - 1)) / (n + 1);
+fn calculate_capacity(number_of_steps: usize) -> usize {
+    binomial(number_of_steps + 2usize, 2usize)
+}
 
-    res
+fn calculate_step_capacity(step_number: usize) -> usize {
+    if step_number > 1 {
+        calculate_capacity(step_number) - calculate_capacity(step_number-1)
+    }
+    else
+    {
+        1usize
+    }
 }
 
 impl BinomialTreeMap {
@@ -42,7 +61,10 @@ impl BinomialTreeMap {
                     let _ = map.insert_unique_unchecked(node_name, OnceLock::new());
                 }
             }
-            stack.push(iter.collect()); // TODO: These needs to be sorted
+
+            let mut vec = Vec::with_capacity(calculate_step_capacity(i));
+            vec.extend(iter);
+            stack.push(vec); // TODO: These needs to be sorted?
             //println!("{:?}", &stack);
             //println!("{:?}", &map);
         }
@@ -69,6 +91,22 @@ impl<'a> Iterator for BinomialTreeMapIterator<'a> {
         self.iter.next()
     }
 }
+
+
+impl BinomialTree for BinomialTreeMap {
+    type NodeNameType = NodeName;
+    type ValueType = f32;
+    type NodeType<T> = BinomialTreeMapValue<T>;
+
+    fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType<Self::ValueType>> {
+        self.map.get(node_name)
+    }
+
+    fn set(&self, node_name: &Self::NodeNameType, value: Self::ValueType) {
+        self.get(node_name).expect("Map was not initialized").set(value).unwrap()
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
