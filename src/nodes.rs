@@ -2,11 +2,11 @@ use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 use std::iter::once;
 
-pub(crate) static ALL_UPDOWNS: [UpDown; 2] = [UpDown::Up, UpDown::Down];
-pub(crate) static INITIAL_NODE: NodeName = NodeName{ name: vec![] };
+pub /*(crate)*/ static ALL_UPDOWNS: [UpDown; 2] = [UpDown::Up, UpDown::Down];
+pub /*(crate)*/ static INITIAL_NODE: NodeName = NodeName{ name: vec![] };
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
-pub(crate) enum UpDown {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub /*(crate)*/ enum UpDown {
     Initial,
     Up,
     Down,
@@ -43,15 +43,17 @@ impl TryFrom<char> for UpDown {
     }
 }
 
+
 #[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Clone)]
-pub(crate) struct NodeName {
+pub /*(crate)*/ struct NodeName {
     pub name: Vec<UpDown>,
 }
 
 impl NodeName {
-    pub(crate) fn value(&self, initial_value: f32, up_value: f32, down_value: f32) -> f32 {
+    pub(crate) fn value(&self, initial_value: f32, up_value: f32, down_value: f32) -> f32
+    {
         let mut value = initial_value;
-        for i in self.name.iter() {
+        for i in self.iter() {
             match i {
                 UpDown::Initial => {}
                 UpDown::Up => {
@@ -75,6 +77,10 @@ impl NodeName {
         // NOTE: Appending is equivalent with sorting if ups are prepended
         NodeName{name: self.name.iter().chain(once(&UpDown::Down)).cloned().collect()}
     }
+
+    fn iter(&self) -> impl Iterator<Item = &UpDown> {
+        self.name.iter()
+    }
 }
 
 impl Display for NodeName {
@@ -92,6 +98,22 @@ impl TryFrom<&str> for NodeName {
 
         Ok(NodeName{name: updowns?})
     }
+}
+
+impl From<NodeName2> for NodeName {
+    fn from(value: NodeName2) -> Self {
+        NodeName{ name: value.name.into() }
+    }
+}
+
+impl From<&[UpDown]> for NodeName {
+    fn from(value: &[UpDown]) -> Self {
+        NodeName { name: value.into() }
+    }
+}
+
+pub(crate) struct NodeName2 {
+    pub(crate) name: &'static [UpDown]
 }
 
 #[cfg(test)]

@@ -1,0 +1,84 @@
+use itertools::Itertools;
+use proc_macro2::TokenStream;
+use quote::{quote, ToTokens};
+use syn::{parse2, LitInt};
+
+// TODO: Put in a separate crate to reuse
+pub(crate) static ALL_UPDOWNS: [UpDown; 2] = [UpDown::Up, UpDown::Down];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub(crate) enum UpDown {
+    Up,
+    Down,
+}
+
+impl ToTokens for UpDown {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let stream = match &self {
+            UpDown::Up => { quote! { UpDown::Up }}
+            UpDown::Down => { quote! { UpDown::Down }}
+        };
+        tokens.extend(stream);
+    }
+}
+
+// TODO: Move
+struct NodeName {
+    name: Vec<UpDown>
+}
+
+impl ToTokens for NodeName {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let name = &self.name;
+        let stream = quote! {
+            &[
+                #(#name, )*
+            ]
+        };
+
+        tokens.extend(stream);
+    }
+}
+
+pub(crate) fn binomial_stack(input: TokenStream) -> TokenStream {
+    let number_of_steps = parse2::<LitInt>(input) // LitInt for e.g. 3
+        .expect("Must be number")
+        .base10_parse::<usize>()
+        .expect("Must be number");
+
+    let mut tokens = Vec::<TokenStream>::new();
+    for i in 0..=number_of_steps {
+        tokens.push(create_level(i));
+    }
+
+    quote! {
+        &[
+            #(#tokens, )*
+        ]
+    }
+}
+
+fn create_level(i: usize) -> TokenStream {
+    let iter: Vec<NodeName> =  ALL_UPDOWNS
+        .iter()
+        .cloned()
+        .combinations_with_replacement(i)
+        .map(|x| NodeName{ name: x })
+        .collect();
+
+    quote! {
+        &[
+            #(#iter, )*
+        ]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_proc() {
+        println!("{:?}", binomial_stack(quote! { 3 }));
+    }
+}

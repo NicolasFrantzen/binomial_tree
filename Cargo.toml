@@ -8,18 +8,15 @@ name = "bench"
 harness = false
 
 [dependencies]
+const_for = "0.1.5"
 criterion = { version = "0.5.1", features = ["html_reports"] }
 hashbrown = { version = "0.15.2", features = ["rayon"] }
 itertools = "0.14.0"
-num = "0.4.3"
 rayon = "1.10.0"
+seq-macro = "0.3.6"
+binomial-tree-macro = { path = "macros" }
+phf = { version = "0.11.3", features = ["macros", "phf_macros"] }
 
 [profile.release-with-debug]
 inherits = "release"
 debug = true
-
-[rust]
-debuginfo-level = 1
-
-[build]
-rustflags = ["-C", "symbol-mangling-version=v0"]
