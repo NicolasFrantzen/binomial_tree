@@ -5,8 +5,8 @@ pub trait Option_ {
     fn option_type(&self) -> OptionType;
     fn value(&self, value: f32, price: f32) -> f32;
 
-    fn payoff(&self, price: f32) -> f32 {
-        return match self.option_type() {
+    fn intrinsic_value(&self, price: f32) -> f32 {
+        match self.option_type() {
             OptionType::Put => (self.strike() - price).max(0.0),
             OptionType::Call => (price - self.strike()).max(0.0),
         }
@@ -39,7 +39,7 @@ impl Option_ for AmericanOption {
     fn option_type(&self) -> OptionType { self.option_type }
 
     fn value(&self, value: f32, price: f32) -> f32 {
-        let payoff = self.payoff(price);
+        let payoff = self.intrinsic_value(price);
         payoff.max(value)
     }
 }
@@ -80,8 +80,8 @@ mod tests {
             expiry: 0.5,
         };
 
-        assert_eq!(option.payoff(30.0), 20.0);
-        assert_eq!(option.payoff(60.0), 0.0);
+        assert_eq!(option.intrinsic_value(30.0), 20.0);
+        assert_eq!(option.intrinsic_value(60.0), 0.0);
         assert_eq!(option.value(10.0, 30.0), 20.0);
         assert_eq!(option.value(30.0, 40.0), 30.0);
         assert_eq!(option.value(40.0, 30.0), 40.0);
@@ -96,8 +96,8 @@ mod tests {
             expiry: 0.5,
         };
 
-        assert_eq!(option.payoff(30.0), 20.0);
-        assert_eq!(option.payoff(60.0), 0.0);
+        assert_eq!(option.intrinsic_value(30.0), 20.0);
+        assert_eq!(option.intrinsic_value(60.0), 0.0);
         assert_eq!(option.value(10.0, 30.0), 10.0);
         assert_eq!(option.value(30.0, 40.0), 30.0);
         assert_eq!(option.value(40.0, 30.0), 40.0);

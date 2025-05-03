@@ -1,20 +1,20 @@
-use std::iter::{Filter, Rev};
-use std::mem::MaybeUninit;
+use std::cell::OnceCell;
+use std::iter::Rev;
 use std::slice::Iter;
 use std::sync::OnceLock;
 
+use crate::nodes::{NodeName, ALL_UPDOWNS};
 use const_for::const_for;
 use hashbrown::HashMap;
 use itertools::Itertools;
-use crate::nodes::{ALL_UPDOWNS, NodeName, UpDown};
 
 pub(crate) trait BinomialTree {
     type NodeNameType;
+    type NodeNameContainerType;
     type ValueType;
     type NodeType<T>;
 
-    fn iter(&self) -> impl Iterator;
-
+    fn iter(&self) -> impl Iterator<Item = &Self::NodeNameContainerType>;
     fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType<Self::ValueType>>;
     fn set(&self, node_name: &Self::NodeNameType, value: Self::ValueType);
     //fn get_up(&self);
@@ -22,12 +22,12 @@ pub(crate) trait BinomialTree {
 }
 
 pub(crate) type BinomialTreeMapNumericType = f32;
-pub(crate) type BinomialTreeMapValue<T> = OnceLock<T>;
+pub(crate) type BinomialTreeMapValue<T> = OnceCell<T>;
 
-pub(crate) struct BinomialTreeMap<const N: usize> {
+pub(crate) struct BinomialTreeMap {
     // Map consists of sorted keys only (with U < D). For example: UUUDD. Values are OnceLock, so they can be replaced without mutable borrowing
     map: HashMap<NodeName, BinomialTreeMapValue<BinomialTreeMapNumericType>>,
-    stack: [Vec<NodeName>; N], // TODO: Fix this, it's quite expensive to construct
+    stack: Vec<Vec<NodeName>>, // TODO: Fix this, it's quite expensive to construct
 }
 
 const fn binom(n: usize, k: usize) -> usize {
@@ -54,33 +54,31 @@ const fn calculate_step_capacity(step_number: usize) -> usize {
     }
 }
 
-impl<const N: usize> BinomialTreeMap<N> {
+impl BinomialTreeMap {
     pub(crate) fn new(number_of_steps: usize) -> Self {
-        let mut map = HashMap::<NodeName, OnceLock<f32>>::with_capacity(calculate_capacity(number_of_steps));
-        let mut stack: [MaybeUninit<Vec<NodeName>>; N] = [const { MaybeUninit::uninit() }; N];
+        let mut map = HashMap::<NodeName, OnceCell<f32>>::with_capacity(calculate_capacity(number_of_steps));
+        let mut stack: Vec<Vec<NodeName>> = Vec::with_capacity(calculate_capacity(number_of_steps));
 
-        const_for!(i in (0..N) => {
+        for i in 0..=number_of_steps {
             let iter = ALL_UPDOWNS
                 .iter()
                 .cloned()
                 .combinations_with_replacement(i)
-                .map(|x| NodeName { name: x });
+                .map(|x| NodeName::new(x) );
 
             for node_name in iter.clone() {
                 // NOTE: Unsafe is fine here, since we insert unique combinations
                 unsafe {
-                    let _ = map.insert_unique_unchecked(node_name, OnceLock::new());
+                    let _ = map.insert_unique_unchecked(node_name, OnceCell::new());
                 }
             }
 
             let mut vec = Vec::with_capacity(calculate_step_capacity(i));
             vec.extend(iter);
-            //let hej: [Option<NodeName>; N] = iter.collect::<Vec<Option<NodeName>>>().try_into().unwrap();
 
-            stack[i].write(vec); // StackLevel{level: hej}
-        });
+            stack.push(vec);
+        }
 
-        let stack: [Vec<NodeName>; N] = stack.map(|elem: MaybeUninit<Vec<NodeName>>| unsafe { elem.assume_init() });
         Self {
             map,
             stack,
@@ -88,25 +86,14 @@ impl<const N: usize> BinomialTreeMap<N> {
     }
 }
 
-pub(crate) struct BinomialTreeMapIterator<'a> {
-    iter: Rev<Iter<'a, Vec<NodeName>>>
-}
-
-impl<'a> Iterator for BinomialTreeMapIterator<'a> {
-    type Item = &'a Vec<NodeName>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
-    }
-}
-
-impl<const N: usize> BinomialTree for BinomialTreeMap<N> {
+impl BinomialTree for BinomialTreeMap {
     type NodeNameType = NodeName;
+    type NodeNameContainerType = Vec<Self::NodeNameType>;
     type ValueType = f32;
     type NodeType<T> = BinomialTreeMapValue<T>;
 
-    fn iter(&self) -> BinomialTreeMapIterator<'_> {
-        BinomialTreeMapIterator{iter: self.stack.iter().rev()}
+    fn iter(&self) -> impl Iterator<Item = &Self::NodeNameContainerType> {
+        self.stack.iter().rev()
     }
 
     fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType<Self::ValueType>> {
@@ -125,17 +112,17 @@ mod tests {
 
     #[test]
     fn test_stack_map_size() {
-        assert_eq!(BinomialTreeMap::<3>::new(3).map.len(), calculate_capacity(3));
-        assert_eq!(BinomialTreeMap::<4>::new(4).map.len(), calculate_capacity(4));
-        assert_eq!(BinomialTreeMap::<5>::new(5).map.len(), calculate_capacity(5));
-        assert_eq!(BinomialTreeMap::<6>::new(6).map.len(), calculate_capacity(6));
-        assert_eq!(BinomialTreeMap::<7>::new(7).map.len(), calculate_capacity(7));
-        assert_eq!(BinomialTreeMap::<8>::new(8).map.len(), calculate_capacity(8));
+        assert_eq!(BinomialTreeMap::new(3).map.len(), calculate_capacity(3));
+        assert_eq!(BinomialTreeMap::new(4).map.len(), calculate_capacity(4));
+        assert_eq!(BinomialTreeMap::new(5).map.len(), calculate_capacity(5));
+        assert_eq!(BinomialTreeMap::new(6).map.len(), calculate_capacity(6));
+        assert_eq!(BinomialTreeMap::new(7).map.len(), calculate_capacity(7));
+        assert_eq!(BinomialTreeMap::new(8).map.len(), calculate_capacity(8));
     }
 
     #[test]
     fn test_stack_map() {
-        let tree: BinomialTreeMap<3> = BinomialTreeMap::new(3);
+        let tree: BinomialTreeMap = BinomialTreeMap::new(3);
         let mut stack_iter = tree.stack.iter().rev();
         assert_eq!(stack_iter.next().unwrap(),
                    &vec!["UUU".try_into().unwrap(), "UUD".try_into().unwrap(), "UDD".try_into().unwrap(), "DDD".try_into().unwrap()]);

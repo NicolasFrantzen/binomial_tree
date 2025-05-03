@@ -1,12 +1,13 @@
 use std::fmt::{Display, Formatter};
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 use std::iter::once;
+use crate::instruments::Option_;
 
 pub /*(crate)*/ static ALL_UPDOWNS: [UpDown; 2] = [UpDown::Up, UpDown::Down];
 pub /*(crate)*/ static INITIAL_NODE: NodeName = NodeName{ name: vec![] };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
-pub /*(crate)*/ enum UpDown {
+pub(crate) enum UpDown {
     Initial,
     Up,
     Down,
@@ -45,22 +46,27 @@ impl TryFrom<char> for UpDown {
 
 
 #[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Clone)]
-pub /*(crate)*/ struct NodeName {
-    pub name: Vec<UpDown>,
+pub(crate) struct NodeName {
+    name: Vec<UpDown>,
 }
 
 impl NodeName {
-    pub(crate) fn value(&self, initial_value: f32, up_value: f32, down_value: f32) -> f32
+    pub(crate) fn new(name: Vec<UpDown>) -> Self {
+        Self { name }
+    }
+
+    pub(crate) fn value(&self, initial_value: f32, up_probability: f32, down_probability: f32) -> f32
     {
         let mut value = initial_value;
+
         for i in self.iter() {
             match i {
                 UpDown::Initial => {}
                 UpDown::Up => {
-                    value = value * up_value;
+                    value *= up_probability;
                 }
                 UpDown::Down => {
-                    value = value * down_value;
+                    value *= down_probability;
                 }
             }
         }
@@ -112,13 +118,149 @@ impl From<&[UpDown]> for NodeName {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct NodeName2 {
-    pub(crate) name: &'static [UpDown]
+    pub(crate) name: &'static [UpDown],
+    pub(crate) direction: Option<UpDown>,
 }
+
+impl From<&'static [UpDown]> for NodeName2 {
+    fn from(value: &'static [UpDown]) -> Self {
+        Self { name: value, direction: None }
+    }
+}
+
+impl NodeName2 {
+    pub(crate) fn new(name: &'static [UpDown]) -> Self {
+        Self {
+            name,
+            direction: None,
+        }
+    }
+
+    pub(crate) fn initial() -> Self {
+        Self::new(&[])
+    }
+
+    pub(crate) fn value(&self, /*i: u32, j: u32, */initial_value: f32, up_value: f32, down_value: f32) -> f32
+    {
+        let mut value = initial_value;
+
+        for i in self.iter() {
+            match i {
+                UpDown::Initial => {}
+                UpDown::Up => {
+                    value *= up_value;
+                }
+                UpDown::Down => {
+                    value *= down_value;
+                }
+            }
+        }
+
+        value
+    }
+
+    pub(crate) fn up(&self) -> Self {
+        Self { name: self.name, direction: Some(UpDown::Up) }
+    }
+
+    pub(crate) fn down(&self) -> Self {
+        Self { name: self.name, direction: Some(UpDown::Down) }
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &UpDown> {
+        self.name.iter().chain(std::iter::from_fn(|| self.direction.as_ref()).take(1))
+    }
+}
+
+impl Hash for NodeName2 {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        if let Some(direction) = self.direction {
+            if direction == UpDown::Up {
+                direction.hash(state);
+            }
+        }
+        for i in self.name.iter() {
+            i.hash(state)
+        }
+        if let Some(direction) = self.direction {
+            if direction == UpDown::Down {
+                direction.hash(state);
+            }
+        }
+    }
+}
+
+impl PartialEq for NodeName2 {
+    fn eq(&self, other: &Self) -> bool {
+        if self.direction == other.direction {
+            return self.name == other.name
+        }
+        if let Some(direction) = other.direction {
+            if self.name.len() == 0usize {
+                return other.name.len() == 0usize && self.direction == other.direction
+            }
+            match direction {
+                UpDown::Initial => {}
+                UpDown::Up => {
+                    return &self.name[1..] == other.name && self.name[0] == direction;
+                }
+                UpDown::Down => {
+                    return &self.name[..self.name.len() - 1] == other.name && self.name[self.name.len() - 1] == direction;
+                }
+            }
+        }
+        if let Some(direction) = self.direction {
+            if other.name.len() == 0usize {
+                return self.name.len() == 0usize && self.direction == other.direction
+            }
+            match direction {
+                UpDown::Initial => {}
+                UpDown::Up => {
+                    return &other.name[1..] == self.name && other.name[0] == direction;
+                }
+                UpDown::Down => {
+                    return &other.name[..other.name.len() - 1] == self.name && other.name[other.name.len() - 1] == direction;
+                }
+            }
+        }
+
+        false
+    }
+}
+
+impl Eq for NodeName2 {
+}
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_nodename2_hash() {
+        let mut hashmap = hashbrown::HashMap::new();
+        hashmap.insert(NodeName2 { name: &[UpDown::Up, UpDown::Down], direction: None }, 1234);
+
+        let first = NodeName2 { name: &[UpDown::Up, UpDown::Down], direction: None };
+        let second = NodeName2 { name: &[UpDown::Up], direction: Some(UpDown::Down) };
+        assert!(first.eq(&second));
+
+        assert!(hashmap.get(&first).is_some());
+        assert!(hashmap.get(&second).is_some());
+
+        let third = NodeName2 { name: &[UpDown::Up], direction: None }.down();
+        assert!(hashmap.get(&third).is_some());
+
+        // Check some special cases
+        let mut hashmap = hashbrown::HashMap::new();
+        hashmap.insert(NodeName2 { name: &[UpDown::Down], direction: None }, 1234);
+        assert!(hashmap.get(&NodeName2::initial().down()).is_some());
+
+        assert_eq!(NodeName2 { name: &[UpDown::Down], direction: None }, NodeName2::initial().down());
+        assert_ne!(NodeName2::initial(), NodeName2::initial().down());
+    }
 
     #[test]
     fn test_tree_updown_from() {
