@@ -316,7 +316,19 @@ mod tests {
         let greeks = model.eval(option);
         assert_eq!(greeks.value(), Value(5.1627836));
         assert_eq!(greeks.delta(), Delta(-0.43557432));
-        println!("{:?}", greeks.model.tree_map.map);
+        //println!("{:?}", greeks.model.tree_map.map);
+    }
+
+    #[test]
+    fn test_binomial_tree_american_fut_call1() {
+        let tree_map = binomial_tree!(3);
+        // Notice r = q for futs
+        let model: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(400.0), 3, Expiry(9.0/12.0), 0.35, 0.06, 0.06);
+        let option = AmericanOption::new(OptionType::Call, 420.0, 9.0/12.0);
+        let greeks = model.eval(option);
+        assert_eq!(greeks.value(), Value(42.06769));
+        assert_eq!(greeks.delta(), Delta(0.48716724));
+        //println!("{:?}", greeks.model.tree_map.map);
     }
 
     #[test]
