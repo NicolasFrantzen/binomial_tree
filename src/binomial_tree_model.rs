@@ -309,6 +309,17 @@ mod tests {
     }
 
     #[test]
+    fn test_binomial_tree_american_put3() {
+        let tree_map = binomial_tree!(3);
+        let model: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(60.0), 3, Expiry(3.0/12.0), 0.45, 0.1, 0.00);
+        let option = AmericanOption::new(OptionType::Put, 60.0, 3.0/12.0);
+        let greeks = model.eval(option);
+        assert_eq!(greeks.value(), Value(5.1627836));
+        assert_eq!(greeks.delta(), Delta(-0.43557432));
+        println!("{:?}", greeks.model.tree_map.map);
+    }
+
+    #[test]
     fn test_binomial_tree_american_put2_100steps() {
         let tree_map = binomial_tree!(100);
         let model: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(31.0), 100, Expiry(0.75), 0.3, 0.05, 0.05);
