@@ -31,9 +31,9 @@ impl ToTokens for NodeName {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let name = &self.name;
         let stream = quote! {
-            &[
+            NodeName2{ name: &[
                 #(#name, )*
-            ]
+            ], direction: None }
         };
 
         tokens.extend(stream);

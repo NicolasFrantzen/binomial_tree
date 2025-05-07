@@ -18,7 +18,7 @@ itertools = "0.14.0"
 #rayon = "1.10.0"
 #seq-macro = "0.3.6"
 binomial-tree-macro = { path = "macros" }
-typed-arena = "2.0.2"
+#typed-arena = "2.0.2"
 #phf = { version = "0.11.3", features = ["macros", "phf_macros"] }
 #pulp = "0.21.4"
 

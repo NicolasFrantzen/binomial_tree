@@ -1,28 +1,39 @@
 use std::cell::OnceCell;
-use std::iter::Rev;
-use std::slice::Iter;
-use std::sync::OnceLock;
+use std::fmt::Debug;
+use std::hash::Hash;
+use std::ops::Deref;
 
-use crate::nodes::{NodeName, ALL_UPDOWNS};
+use crate::nodes::{NodeNameTrait, NodeName, ALL_UPDOWNS};
 use const_for::const_for;
 use hashbrown::HashMap;
 use itertools::Itertools;
 
 pub(crate) trait BinomialTree {
-    type NodeNameType;
+    type NodeNameType: NodeNameTrait + Debug + Hash + Default;
     type NodeNameContainerType;
-    type ValueType;
-    type NodeType<T>;
+    type ValueType: From<f32> + Into<f32>;
+    type NodeType: GetValue;
 
-    fn iter(&self) -> impl Iterator<Item = &Self::NodeNameContainerType>;
-    fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType<Self::ValueType>>;
+    fn iter(&self) -> impl DoubleEndedIterator + ExactSizeIterator<Item = &impl Deref<Target = [Self::NodeNameType]>>;
+    fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType>;
+    fn get_next_step(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType>;
     fn set(&self, node_name: &Self::NodeNameType, value: Self::ValueType);
-    //fn get_up(&self);
-    //fn get_down(&self);
 }
 
 pub(crate) type BinomialTreeMapNumericType = f32;
 pub(crate) type BinomialTreeMapValue<T> = OnceCell<T>;
+pub(crate) type BinomTreeValueType = BinomialTreeMapValue<BinomialTreeMapNumericType>;
+
+pub(crate) trait GetValue {
+    fn get(&self) -> &f32;
+}
+
+impl GetValue for BinomialTreeMapValue<f32> {
+    fn get(&self) -> &f32 {
+        let value =  self.get();
+        value.expect("The tree should be evaluated backwards")
+    }
+}
 
 pub(crate) struct BinomialTreeMap {
     // Map consists of sorted keys only (with U < D). For example: UUUDD. Values are OnceLock, so they can be replaced without mutable borrowing
@@ -56,7 +67,7 @@ const fn calculate_step_capacity(step_number: usize) -> usize {
 
 impl BinomialTreeMap {
     pub(crate) fn new(number_of_steps: usize) -> Self {
-        let mut map = HashMap::<NodeName, OnceCell<f32>>::with_capacity(calculate_capacity(number_of_steps));
+        let mut map = HashMap::<NodeName, BinomTreeValueType>::with_capacity(calculate_capacity(number_of_steps));
         let mut stack: Vec<Vec<NodeName>> = Vec::with_capacity(calculate_capacity(number_of_steps));
 
         for i in 0..=number_of_steps {
@@ -69,7 +80,7 @@ impl BinomialTreeMap {
             for node_name in iter.clone() {
                 // NOTE: Unsafe is fine here, since we insert unique combinations
                 unsafe {
-                    let _ = map.insert_unique_unchecked(node_name, OnceCell::new());
+                    let _ = map.insert_unique_unchecked(node_name, BinomialTreeMapValue::new());
                 }
             }
 
@@ -90,14 +101,18 @@ impl BinomialTree for BinomialTreeMap {
     type NodeNameType = NodeName;
     type NodeNameContainerType = Vec<Self::NodeNameType>;
     type ValueType = f32;
-    type NodeType<T> = BinomialTreeMapValue<T>;
+    type NodeType = BinomialTreeMapValue<Self::ValueType>;
 
-    fn iter(&self) -> impl Iterator<Item = &Self::NodeNameContainerType> {
-        self.stack.iter().rev()
+    fn iter(&self) -> impl DoubleEndedIterator + ExactSizeIterator<Item = &impl Deref<Target = [Self::NodeNameType]>> {
+        self.stack.iter()
     }
 
-    fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType<Self::ValueType>> {
+    fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType> {
         self.map.get(node_name)
+    }
+
+    fn get_next_step(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType> {
+        self.map.get(&node_name.up())
     }
 
     fn set(&self, node_name: &Self::NodeNameType, value: Self::ValueType) {

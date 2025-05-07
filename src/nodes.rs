@@ -1,10 +1,9 @@
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::iter::once;
-use crate::instruments::Option_;
 
 pub /*(crate)*/ static ALL_UPDOWNS: [UpDown; 2] = [UpDown::Up, UpDown::Down];
-pub /*(crate)*/ static INITIAL_NODE: NodeName = NodeName{ name: vec![] };
+//pub /*(crate)*/ static INITIAL_NODE: NodeName = NodeName{ name: vec![] };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) enum UpDown {
@@ -44,18 +43,38 @@ impl TryFrom<char> for UpDown {
     }
 }
 
+pub(crate) trait NodeNameTrait {
+    type NameType;
+    fn new(name: Self::NameType) -> Self;
+    fn up(&self) -> Self;
+    fn down(&self) -> Self;
 
-#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Clone)]
+    fn value(&self, initial_value: f32, up_probability: f32, down_probability: f32) -> f32;
+}
+
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Clone, Default)]
 pub(crate) struct NodeName {
     name: Vec<UpDown>,
 }
 
-impl NodeName {
-    pub(crate) fn new(name: Vec<UpDown>) -> Self {
-        Self { name }
+impl NodeNameTrait for NodeName {
+    type NameType = Vec<UpDown>;
+
+    fn new(name: Self::NameType) -> Self {
+        Self { name: name }
     }
 
-    pub(crate) fn value(&self, initial_value: f32, up_probability: f32, down_probability: f32) -> f32
+    fn up(&self) -> Self {
+        // NOTE: Prepending is equivalent with sorting if downs are appended
+        NodeName{ name: once(UpDown::Up).chain(self.name.iter().cloned()).collect() }
+    }
+
+    fn down(&self) -> Self {
+        // NOTE: Appending is equivalent with sorting if ups are prepended
+        NodeName{name: self.name.iter().chain(once(&UpDown::Down)).cloned().collect()}
+    }
+
+    fn value(&self, initial_value: f32, up_probability: f32, down_probability: f32) -> f32
     {
         let mut value = initial_value;
 
@@ -73,17 +92,9 @@ impl NodeName {
 
         value
     }
+}
 
-    pub(crate) fn up(&self) -> NodeName {
-        // NOTE: Prepending is equivalent with sorting if downs are appended
-        NodeName{ name: once(UpDown::Up).chain(self.name.iter().cloned()).collect() }
-    }
-
-    pub(crate) fn down(&self) -> NodeName {
-        // NOTE: Appending is equivalent with sorting if ups are prepended
-        NodeName{name: self.name.iter().chain(once(&UpDown::Down)).cloned().collect()}
-    }
-
+impl NodeName {
     fn iter(&self) -> impl Iterator<Item = &UpDown> {
         self.name.iter()
     }
@@ -118,31 +129,28 @@ impl From<&[UpDown]> for NodeName {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub(crate) struct NodeName2 {
     pub(crate) name: &'static [UpDown],
     pub(crate) direction: Option<UpDown>,
 }
 
-impl From<&'static [UpDown]> for NodeName2 {
-    fn from(value: &'static [UpDown]) -> Self {
-        Self { name: value, direction: None }
-    }
-}
+impl NodeNameTrait for NodeName2 {
+    type NameType = &'static [UpDown];
 
-impl NodeName2 {
-    pub(crate) fn new(name: &'static [UpDown]) -> Self {
-        Self {
-            name,
-            direction: None,
-        }
+    fn new(name: Self::NameType) -> Self {
+        Self { name, direction: None }
     }
 
-    pub(crate) fn initial() -> Self {
-        Self::new(&[])
+    fn up(&self) -> Self {
+        Self { name: self.name, direction: Some(UpDown::Up) }
     }
 
-    pub(crate) fn value(&self, /*i: u32, j: u32, */initial_value: f32, up_value: f32, down_value: f32) -> f32
+    fn down(&self) -> Self {
+        Self { name: self.name, direction: Some(UpDown::Down) }
+    }
+
+    fn value(&self, initial_value: f32, up_value: f32, down_value: f32) -> f32
     {
         let mut value = initial_value;
 
@@ -160,15 +168,9 @@ impl NodeName2 {
 
         value
     }
+}
 
-    pub(crate) fn up(&self) -> Self {
-        Self { name: self.name, direction: Some(UpDown::Up) }
-    }
-
-    pub(crate) fn down(&self) -> Self {
-        Self { name: self.name, direction: Some(UpDown::Down) }
-    }
-
+impl NodeName2 {
     pub(crate) fn iter(&self) -> impl Iterator<Item = &UpDown> {
         self.name.iter().chain(std::iter::from_fn(|| self.direction.as_ref()).take(1))
     }
@@ -233,9 +235,30 @@ impl PartialEq for NodeName2 {
 impl Eq for NodeName2 {
 }
 
+/*impl NodeNameTrait for &'static [UpDown] {
+    type NameType = <NodeName2 as NodeNameTrait>::NameType;
+
+    fn new(name: Self::NameType) -> Self {
+        name
+    }
+
+    fn up(&self) -> Self {
+        todo!()
+    }
+
+    fn down(&self) -> Self {
+        todo!()
+    }
+
+    fn value(&self, initial_value: f32, up_probability: f32, down_probability: f32) -> f32 {
+        todo!()
+    }
+}*/
+
 
 #[cfg(test)]
 mod tests {
+    use itertools::assert_equal;
     use super::*;
 
     #[test]
@@ -253,13 +276,16 @@ mod tests {
         let third = NodeName2 { name: &[UpDown::Up], direction: None }.down();
         assert!(hashmap.get(&third).is_some());
 
+        // Check that we can get the equivalent key back
+        assert_eq!(hashmap.get_key_value(&second), Some((&NodeName2 { name: &[UpDown::Up, UpDown::Down], direction: None }, &1234)));
+
         // Check some special cases
         let mut hashmap = hashbrown::HashMap::new();
         hashmap.insert(NodeName2 { name: &[UpDown::Down], direction: None }, 1234);
-        assert!(hashmap.get(&NodeName2::initial().down()).is_some());
+        assert!(hashmap.get(&NodeName2::default().down()).is_some());
 
-        assert_eq!(NodeName2 { name: &[UpDown::Down], direction: None }, NodeName2::initial().down());
-        assert_ne!(NodeName2::initial(), NodeName2::initial().down());
+        assert_eq!(NodeName2 { name: &[UpDown::Down], direction: None }, NodeName2::default().down());
+        assert_ne!(NodeName2::default(), NodeName2::default().down());
     }
 
     #[test]

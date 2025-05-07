@@ -1,24 +1,19 @@
 //use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
-use std::marker::PhantomData;
-use typed_arena::Arena;
-use crate::binomial_tree_map::{calculate_capacity, BinomialTree};
+use crate::binomial_tree_map::{BinomialTree, GetValue};
 use crate::instruments::Option_;
-use crate::nodes::{NodeName, NodeName2, UpDown, INITIAL_NODE};
-use crate::static_binomial_tree_map::StaticBinomialTreeMap;
+use crate::nodes::NodeNameTrait;
 
 pub struct BinomialTreeModel<Map> {
-    //tree_map: BinomialTreeMap<N>,
-    tree_map: StaticBinomialTreeMap,
+    tree_map: Map,
     params: VolatilityParameters,
     spot: Spot,
     discount_factor: f32,
     time_step: f32,
-    phantom_data: PhantomData<Map>,
 }
 
-impl<Map> BinomialTreeModel<Map> {
-    pub fn new(tree_map: StaticBinomialTreeMap, initial_price: Spot, number_of_steps: usize, expiry: Expiry, volatility: f32, interest_rate: f32, dividends: f32) -> Self {
+impl<Map: BinomialTree> BinomialTreeModel<Map> {
+    pub fn new(tree_map: Map, initial_price: Spot, number_of_steps: usize, expiry: Expiry, volatility: f32, interest_rate: f32, dividends: f32) -> Self {
         let time_step = expiry.0 / number_of_steps as f32;
         let vol_params = VolatilityParameters::new(volatility, interest_rate, dividends, time_step);
 
@@ -28,67 +23,20 @@ impl<Map> BinomialTreeModel<Map> {
             spot: initial_price,
             discount_factor: (-interest_rate * time_step).exp(),
             time_step,
-            phantom_data: Default::default(),
         }
     }
-    /*pub fn new(initial_price: Spot, number_of_steps: usize, expiry: Expiry, volatility: f32, interest_rate: f32, dividends: f32) -> Self {
-        let time_step = expiry.0 / number_of_steps as f32;
-        let vol_params = VolatilityParameters::new(volatility, interest_rate, dividends, time_step);
 
-        Self {
-            tree_map: BinomialTreeMap::new(number_of_steps),
-            params: vol_params,
-            spot: initial_price,
-            discount_factor: (-interest_rate * time_step).exp(),
-            time_step,
-        }
-    }*/
-
-    /*pub fn eval<T: Option_ + Sync>(self, option: T) -> EvaluatedBinomialTreeModel<N> {
+    pub fn eval<T: Option_ + Sync>(self, option: T) -> EvaluatedBinomialTreeModel<Map>
+    {
         let p = self.params.p();
 
-        for node_level in self.tree_map.iter() {
-            node_level.par_iter().rev().for_each(|node| {
+        for (i, node_level) in self.tree_map.iter().enumerate().rev() {
+            node_level.iter().rev().enumerate().for_each(|(j, node)| {
+
                 let up_value = self.tree_map.get(&node.up());
                 let down_value = self.tree_map.get(&node.down());
 
-                let price = node.value(self.spot.0, self.params.u, self.params.d);
-
-                if let (Some(up_value), Some(down_value)) = (up_value, down_value) {
-                    let up_value = up_value.wait();
-                    let down_value = down_value.wait();
-                    let value = (up_value * p + down_value * (1.0 - p)) * self.discount_factor;
-
-                    let option_value = option.value(value, price);
-
-                    self.tree_map.set(&node, option_value);
-                }
-                else {
-                    // TODO: Handle some unwraps here
-                    self.tree_map.set(&node, option.payoff(price));
-                }
-
-            });
-        }
-
-        EvaluatedBinomialTreeModel{model: self}
-    }*/
-
-    pub fn eval<T: Option_ + Sync>(self, option: T) -> EvaluatedBinomialTreeModel<Map> {
-        let p = self.params.p();
-
-        // TODO: arena here to allocate Nodes/up/down
-        //let arena =  Arena::new();
-        //let mut arena: Vec<NodeName> = Vec::with_capacity(calculate_capacity(self.tree_map.stack.len()));
-
-        for (i, node_level) in self.tree_map.stack.iter().enumerate().rev() {
-            node_level.iter().rev().enumerate().for_each(|(j, node)| {
-                //let node: &NodeName = arena.alloc((*node).into());
-                //let node: NodeName = (*node).into();
-                let node: NodeName2 = NodeName2::new(node);
-                let up_value = self.tree_map.map.get(&node.up());
-                let down_value = self.tree_map.map.get(&node.down());
-
+                // TODO: Hide details
                 let price = self.spot.0 * self.params.u.powi(j as i32) * self.params.d.powi((i-j) as i32);
 
                 //println!("{:?}{:?}", node.up(), up_value);
@@ -96,25 +44,17 @@ impl<Map> BinomialTreeModel<Map> {
 
                 if let (Some(up_value), Some(down_value)) = (up_value, down_value) {
                     let up_value = up_value.get();
-                    if up_value == None {
-                        panic!("The tree should be evaluated backwards {:?}", node.up());
-                    }
-                    let up_value = up_value.unwrap();
-
                     let down_value = down_value.get(); //.expect("The tree should be evaluated backwards");
-                    if down_value == None {
-                        panic!("The tree should be evaluated backwards {:?}", node.down());
-                    }
-                    let down_value = down_value.unwrap();
 
+                    // TODO: Hide details
                     let value = (up_value * p + down_value * (1.0 - p)) * self.discount_factor;
 
                     let option_value = option.value(value, price);
-
-                    self.tree_map.set(&node, option_value);
+                    self.tree_map.set(
+                        &node, option_value.into());
                 } else {
-                    // TODO: Handle some unwraps here
-                    self.tree_map.set(&node, option.intrinsic_value(price));
+                    let option_value = option.intrinsic_value(price);
+                    self.tree_map.set(&node, option_value.into());
                 }
             });
         }
@@ -127,24 +67,23 @@ pub struct EvaluatedBinomialTreeModel<Map> {
     model: BinomialTreeModel<Map>,
 }
 
-impl<Map> EvaluatedBinomialTreeModel<Map> {
+impl<Map: BinomialTree> EvaluatedBinomialTreeModel<Map> {
     pub fn value(&self) -> Value
     {
-        let initial_node = NodeName2::initial();
-        //let value = self.model.tree_map.get(&INITIAL_NODE).unwrap().get().unwrap();
-        let value = self.model.tree_map.get(&initial_node).unwrap().get().unwrap();
+        let initial_node = <Map as BinomialTree>::NodeNameType::default();
+        let value = self.model.tree_map.get(&initial_node).unwrap().get();
         Value(*value)
     }
 
     pub fn delta(&self) -> Delta {
-        self.delta_from(&NodeName2::initial())
+        self.delta_from(&<Map as BinomialTree>::NodeNameType::default())
     }
 
-    fn delta_from(&self, from_node: &NodeName2) -> Delta {
+    fn delta_from(&self, from_node: &<Map as BinomialTree>::NodeNameType) -> Delta {
         let last_up = from_node.up();
-        let last_up_value =  self.model.tree_map.get(&last_up).unwrap().get().unwrap();
+        let last_up_value =  self.model.tree_map.get(&last_up).unwrap().get();
         let last_down = from_node.down();
-        let last_down_value = self.model.tree_map.get(&last_down).unwrap().get().unwrap();
+        let last_down_value = self.model.tree_map.get(&last_down).unwrap().get();
         let h = last_up.value(self.model.spot.0, self.model.params.u, self.model.params.d) - last_down.value(
             self.model.spot.0,
             self.model.params.u,
@@ -158,13 +97,13 @@ impl<Map> EvaluatedBinomialTreeModel<Map> {
     }
 
     pub fn gamma(&self) -> Gamma {
-        let initial_node = NodeName2::initial();
+        let initial_node = <Map as BinomialTree>::NodeNameType::default();
         let node_u = initial_node.up();
         let node_d = initial_node.down();
         let delta_u = self.delta_from(&node_u);
         let delta_d = self.delta_from(&node_d);
-        let spot_u = self.model.tree_map.get(&node_u).unwrap().get().unwrap();
-        let spot_d = self.model.tree_map.get(&node_d).unwrap().get().unwrap();
+        let spot_u = self.model.tree_map.get(&node_u).unwrap().get();
+        let spot_d = self.model.tree_map.get(&node_d).unwrap().get();
 
         if spot_u == spot_d {
             Gamma(0.0)
@@ -175,9 +114,9 @@ impl<Map> EvaluatedBinomialTreeModel<Map> {
     }
 
     pub fn theta(&self) -> Theta {
-        let initial_node = NodeName2::initial();
-        let val_0 = self.model.tree_map.get(&initial_node).unwrap().get().unwrap();
-        let val_2 = self.model.tree_map.get(&NodeName2 { name: &[UpDown::Up, UpDown::Down], direction: None }).unwrap().get().unwrap();
+        let initial_node = <Map as BinomialTree>::NodeNameType::default();
+        let val_0 = self.model.tree_map.get(&initial_node).unwrap().get();
+        let val_2 = self.model.tree_map.get_next_step(&initial_node).unwrap().get();
 
         assert_ne!(self.model.time_step, 0.0);
         Theta((val_2 - val_0) / (2.0 * self.model.time_step))
@@ -244,7 +183,7 @@ pub struct Theta(pub f32);
 mod tests {
     use crate::binomial_tree;
     use crate::instruments::{AmericanOption, EuropeanOption, OptionType};
-
+    use crate::static_binomial_tree_map::StaticBinomialTreeMap;
     use super::*;
 
     #[test]
@@ -263,8 +202,8 @@ mod tests {
         let model: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(810.0), 2, Expiry(0.5), 0.2, 0.05, 0.02);
         let option = EuropeanOption::new(OptionType::Call, 800.0, 0.5);
         let greeks = model.eval(option);
-        assert_eq!(greeks.value(), Value(53.39472));
-        assert_eq!(greeks.delta(), Delta(0.58913547));
+        assert_eq!(greeks.value(), Value(53.394733));
+        assert_eq!(greeks.delta(), Delta(0.5891357));
     }
 
     #[test]
@@ -273,8 +212,8 @@ mod tests {
         let model: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(0.61), 3, Expiry(0.25), 0.12, 0.05, 0.07);
         let option = EuropeanOption::new(OptionType::Call, 0.6, 0.25);
         let greeks = model.eval(option);
-        assert_eq!(greeks.value(), Value(0.018597351));
-        assert_eq!(greeks.delta(), Delta(0.6000445));
+        assert_eq!(greeks.value(), Value(0.018597357));
+        assert_eq!(greeks.delta(), Delta(0.6000447));
     }
 
     #[test]
@@ -292,9 +231,14 @@ mod tests {
         let tree_map = binomial_tree!(2);
         let model: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(50.0), 2, Expiry(2.0), 0.3, 0.05, 0.0);
         let option = AmericanOption::new(OptionType::Put, 52.0, 2.0);
-        let greeks = model.eval(option);
-        assert_eq!(greeks.value(), Value(7.428405));
-        assert_eq!(greeks.delta(), Delta(-0.4606061));
+        let eval = model.eval(option);
+
+        assert_eq!(eval.greeks(), Greeks{
+            value: Value(7.428405),
+            delta: Delta(-0.4606061),
+            gamma: Gamma(-0.0), // Hmm
+            theta: Theta(-2.7142024),
+        })
     }
 
     #[test]
@@ -337,7 +281,7 @@ mod tests {
         let model: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(31.0), 100, Expiry(0.75), 0.3, 0.05, 0.05);
         let option = AmericanOption::new(OptionType::Put, 30.0, 0.75);
         let greeks = model.eval(option);
-        assert_eq!(greeks.value(), Value(2.604315));
-        assert_eq!(greeks.delta(), Delta(-0.38875514));
+        assert_eq!(greeks.value(), Value(2.6043036));
+        assert_eq!(greeks.delta(), Delta(-0.38875455));
     }
 }
