@@ -7,6 +7,7 @@ use crate::binomial_tree_map::BinomialTreeMapValue;
 use crate::binomial_tree_map::BinomialTreeMapNumericType;
 use crate::nodes::{NodeName2, NodeNameTrait, UpDown};
 
+pub(crate) static MAX_STATIC_TREE_SIZE: usize = 128;
 const PRE_ALLOCATED_STACK: &'static [&'static [NodeName2]] = binomial_tree_stack!(128);
 
 #[derive(Debug)]
@@ -16,7 +17,6 @@ pub struct StaticBinomialTreeMap {
     pub(crate) stack: &'static [&'static [NodeName2]],
 }
 
-// TODO: Impl the trait instead
 impl StaticBinomialTreeMap {
     pub fn new<const N: usize>() -> StaticBinomialTreeMap
     {

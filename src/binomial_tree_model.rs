@@ -161,10 +161,10 @@ impl VolatilityParameters {
 
 #[derive(Debug, PartialEq)]
 pub struct Greeks {
-    value: Value,
-    delta: Delta,
-    gamma: Gamma,
-    theta: Theta,
+    pub value: Value,
+    pub delta: Delta,
+    pub gamma: Gamma,
+    pub theta: Theta,
 }
 
 #[derive(Debug, PartialEq)]
@@ -181,14 +181,14 @@ pub struct Theta(pub f32);
 
 #[cfg(test)]
 mod tests {
-    use crate::binomial_tree;
+    use crate::binomial_tree_map;
     use crate::instruments::{AmericanOption, EuropeanOption, OptionType};
     use crate::static_binomial_tree_map::StaticBinomialTreeMap;
     use super::*;
 
     #[test]
     fn test_binomial_tree_european_call() {
-        let tree_map = binomial_tree!(2);
+        let tree_map = binomial_tree_map!(2);
         let model: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(100.0), 2, Expiry(0.5), 0.3, 0.05, 0.0);
         let option = EuropeanOption::new(OptionType::Call, 95.0, 0.5);
         let greeks = model.eval(option);
@@ -198,7 +198,7 @@ mod tests {
 
     #[test]
     fn test_binomial_tree_european_call2() {
-        let tree_map = binomial_tree!(2);
+        let tree_map = binomial_tree_map!(2);
         let model: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(810.0), 2, Expiry(0.5), 0.2, 0.05, 0.02);
         let option = EuropeanOption::new(OptionType::Call, 800.0, 0.5);
         let greeks = model.eval(option);
@@ -208,7 +208,7 @@ mod tests {
 
     #[test]
     fn test_binomial_tree_european_call3() {
-        let tree_map = binomial_tree!(3);
+        let tree_map = binomial_tree_map!(3);
         let model: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(0.61), 3, Expiry(0.25), 0.12, 0.05, 0.07);
         let option = EuropeanOption::new(OptionType::Call, 0.6, 0.25);
         let greeks = model.eval(option);
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn test_binomial_tree_european_put1() {
-        let tree_map = binomial_tree!(2);
+        let tree_map = binomial_tree_map!(2);
         let model: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(50.0), 2, Expiry(2.0), 0.3, 0.05, 0.0);
         let option = EuropeanOption::new(OptionType::Put, 52.0, 2.0);
         let greeks = model.eval(option);
@@ -228,7 +228,7 @@ mod tests {
 
     #[test]
     fn test_binomial_tree_american_put1() {
-        let tree_map = binomial_tree!(2);
+        let tree_map = binomial_tree_map!(2);
         let model: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(50.0), 2, Expiry(2.0), 0.3, 0.05, 0.0);
         let option = AmericanOption::new(OptionType::Put, 52.0, 2.0);
         let eval = model.eval(option);
@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn test_binomial_tree_american_put2() {
-        let tree_map = binomial_tree!(3);
+        let tree_map = binomial_tree_map!(3);
         let model: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(31.0), 3, Expiry(0.75), 0.3, 0.05, 0.05);
         let option = AmericanOption::new(OptionType::Put, 30.0, 0.75);
         let greeks = model.eval(option);
@@ -254,7 +254,7 @@ mod tests {
 
     #[test]
     fn test_binomial_tree_american_put3() {
-        let tree_map = binomial_tree!(3);
+        let tree_map = binomial_tree_map!(3);
         let model: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(60.0), 3, Expiry(3.0/12.0), 0.45, 0.1, 0.00);
         let option = AmericanOption::new(OptionType::Put, 60.0, 3.0/12.0);
         let greeks = model.eval(option);
@@ -265,7 +265,7 @@ mod tests {
 
     #[test]
     fn test_binomial_tree_american_fut_call1() {
-        let tree_map = binomial_tree!(3);
+        let tree_map = binomial_tree_map!(3);
         // Notice r = q for futs
         let model: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(400.0), 3, Expiry(9.0/12.0), 0.35, 0.06, 0.06);
         let option = AmericanOption::new(OptionType::Call, 420.0, 9.0/12.0);
@@ -277,7 +277,7 @@ mod tests {
 
     #[test]
     fn test_binomial_tree_american_put2_100steps() {
-        let tree_map = binomial_tree!(100);
+        let tree_map = binomial_tree_map!(100);
         let model: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(31.0), 100, Expiry(0.75), 0.3, 0.05, 0.05);
         let option = AmericanOption::new(OptionType::Put, 30.0, 0.75);
         let greeks = model.eval(option);

@@ -258,7 +258,6 @@ impl Eq for NodeName2 {
 
 #[cfg(test)]
 mod tests {
-    use itertools::assert_equal;
     use super::*;
 
     #[test]
