@@ -45,10 +45,9 @@ impl TryFrom<char> for UpDown {
 
 pub(crate) trait NodeNameTrait {
     type NameType;
-    fn new(name: Self::NameType) -> Self;
+
     fn up(&self) -> Self;
     fn down(&self) -> Self;
-
     fn value(&self, initial_value: f32, up_probability: f32, down_probability: f32) -> f32;
 }
 
@@ -59,10 +58,6 @@ pub(crate) struct NodeName {
 
 impl NodeNameTrait for NodeName {
     type NameType = Vec<UpDown>;
-
-    fn new(name: Self::NameType) -> Self {
-        Self { name: name }
-    }
 
     fn up(&self) -> Self {
         // NOTE: Prepending is equivalent with sorting if downs are appended
@@ -95,6 +90,10 @@ impl NodeNameTrait for NodeName {
 }
 
 impl NodeName {
+    pub(crate) fn new(name: Vec<UpDown>) -> Self {
+        Self { name }
+    }
+
     fn iter(&self) -> impl Iterator<Item = &UpDown> {
         self.name.iter()
     }
@@ -138,9 +137,9 @@ pub(crate) struct NodeName2 {
 impl NodeNameTrait for NodeName2 {
     type NameType = &'static [UpDown];
 
-    fn new(name: Self::NameType) -> Self {
+    /*fn new(name: Self::NameType) -> Self {
         Self { name, direction: None }
-    }
+    }*/
 
     fn up(&self) -> Self {
         Self { name: self.name, direction: Some(UpDown::Up) }
@@ -232,29 +231,7 @@ impl PartialEq for NodeName2 {
     }
 }
 
-impl Eq for NodeName2 {
-}
-
-/*impl NodeNameTrait for &'static [UpDown] {
-    type NameType = <NodeName2 as NodeNameTrait>::NameType;
-
-    fn new(name: Self::NameType) -> Self {
-        name
-    }
-
-    fn up(&self) -> Self {
-        todo!()
-    }
-
-    fn down(&self) -> Self {
-        todo!()
-    }
-
-    fn value(&self, initial_value: f32, up_probability: f32, down_probability: f32) -> f32 {
-        todo!()
-    }
-}*/
-
+impl Eq for NodeName2 {}
 
 #[cfg(test)]
 mod tests {

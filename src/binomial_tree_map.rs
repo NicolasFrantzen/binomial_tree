@@ -1,14 +1,16 @@
+use crate::nodes::{NodeNameTrait, NodeName, ALL_UPDOWNS};
+
+use const_for::const_for;
+use hashbrown::HashMap;
+use itertools::Itertools;
+
 use std::cell::OnceCell;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::Deref;
 
-use crate::nodes::{NodeNameTrait, NodeName, ALL_UPDOWNS};
-use const_for::const_for;
-use hashbrown::HashMap;
-use itertools::Itertools;
 
-pub(crate) trait BinomialTree {
+pub(crate) trait BinomialTreeImpl {
     type NodeNameType: NodeNameTrait + Debug + Hash + Default;
     type NodeNameContainerType;
     type ValueType: From<f32> + Into<f32>;
@@ -18,6 +20,10 @@ pub(crate) trait BinomialTree {
     fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType>;
     fn get_next_step(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType>;
     fn set(&self, node_name: &Self::NodeNameType, value: Self::ValueType);
+}
+
+#[allow(private_bounds)]
+pub trait BinomialTree: BinomialTreeImpl {
 }
 
 pub(crate) type BinomialTreeMapNumericType = f32;
@@ -66,6 +72,7 @@ const fn calculate_step_capacity(step_number: usize) -> usize {
 }
 
 impl BinomialTreeMap {
+    #[allow(dead_code)]
     pub(crate) fn new(number_of_steps: usize) -> Self {
         let mut map = HashMap::<NodeName, BinomTreeValueType>::with_capacity(calculate_capacity(number_of_steps));
         let mut stack: Vec<Vec<NodeName>> = Vec::with_capacity(calculate_capacity(number_of_steps));
@@ -97,7 +104,7 @@ impl BinomialTreeMap {
     }
 }
 
-impl BinomialTree for BinomialTreeMap {
+impl BinomialTreeImpl for BinomialTreeMap {
     type NodeNameType = NodeName;
     type NodeNameContainerType = Vec<Self::NodeNameType>;
     type ValueType = f32;
@@ -119,6 +126,8 @@ impl BinomialTree for BinomialTreeMap {
         self.get(node_name).expect("Map was not initialized").set(value).unwrap()
     }
 }
+
+impl BinomialTree for BinomialTreeMap {}
 
 
 #[cfg(test)]

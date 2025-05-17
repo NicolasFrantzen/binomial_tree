@@ -23,7 +23,7 @@ macro_rules! eval_binomial_tree {
                 todo!()
             }
             else {
-                let tree_map = binomial_tree_map!($N);
+                let tree_map = $crate::binomial_tree_map!($N);
                 let binom_tree: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(
                     tree_map,
                     Spot($spot),
@@ -44,12 +44,12 @@ macro_rules! eval_binomial_tree {
 macro_rules! eval_binomial_tree_with_steps {
     ($N:literal, $($y:tt),+) => {
         {
-            eval_binomial_tree!($N, $($y),+)
+            $crate::eval_binomial_tree!($N, $($y),+)
         }
     };
     ($($y:tt),+) => {
         {
-            eval_binomial_tree_with_steps!(100, $($y),+)
+            $crate::eval_binomial_tree_with_steps!(100, $($y),+)
         }
     };
 }
@@ -58,7 +58,7 @@ macro_rules! eval_binomial_tree_with_steps {
 macro_rules! american_value {
     (impl $option_type:ident, $($y:expr),+) => {
         {
-            eval_binomial_tree_with_steps!(AmericanOption, $option_type, $($y),+).value()
+            $crate::eval_binomial_tree_with_steps!(AmericanOption, $option_type, $($y),+).value()
         }
     };
 
@@ -79,7 +79,7 @@ macro_rules! american_value {
 macro_rules! european_value {
     ($option_type:ident, $($y:expr),+) => {
         {
-            eval_binomial_tree_with_steps!(EuropeanOption, $option_type, $($y),+).value()
+            $crate::eval_binomial_tree_with_steps!(EuropeanOption, $option_type, $($y),+).value()
         }
     };
 
@@ -98,9 +98,9 @@ macro_rules! european_value {
 
 #[macro_export]
 macro_rules! american_greeks {
-    ($option_type:ident, $($y:expr),+) => {
+    (impl $option_type:ident, $($y:expr),+) => {
         {
-            eval_binomial_tree_with_steps!(AmericanOption, $option_type, $($y),+).greeks()
+            $crate::eval_binomial_tree_with_steps!(AmericanOption, $option_type, $($y),+).greeks()
         }
     };
 
@@ -119,9 +119,9 @@ macro_rules! american_greeks {
 
 #[macro_export]
 macro_rules! european_greeks {
-    ($option_type:ident, $($y:expr),+) => {
+    (impl $option_type:ident, $($y:expr),+) => {
         {
-            eval_binomial_tree_with_steps!(EuropeanOption, $option_type, $($y),+).greeks()
+            $crate::eval_binomial_tree_with_steps!(EuropeanOption, $option_type, $($y),+).greeks()
         }
     };
 

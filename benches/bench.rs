@@ -1,51 +1,52 @@
 use binominal_tree_model::binomial_tree_model::{BinomialTreeModel, Expiry, Spot};
 use binominal_tree_model::instruments::{EuropeanOption, OptionType, Option_, AmericanOption};
-use binominal_tree_model::macros::binomial_tree;
+use binominal_tree_model::binomial_tree_map;
+use binominal_tree_model::static_binomial_tree_map::StaticBinomialTreeMap;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 //use std::hint::black_box;
 use std::time::Duration;
-use binominal_tree_model::static_binomial_tree_map::StaticBinomialTreeMap;
+
 
 fn european_call_value_100() {
-    let tree_map = binomial_tree!(100);
+    let tree_map = binomial_tree_map!(100);
     let binom_tree: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(100.0), 100usize, Expiry(0.5), 0.3, 0.05, 0.0);
     let _val = binom_tree.eval(EuropeanOption::new(OptionType::Call, 95.0, 0.5)).value();
 }
 
 fn american_call_value_100() {
-    let tree_map = binomial_tree!(100);
+    let tree_map = binomial_tree_map!(100);
     let binom_tree: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(100.0), 100usize, Expiry(0.5), 0.3, 0.05, 0.0);
     let _val = binom_tree.eval(AmericanOption::new(OptionType::Call, 95.0, 0.5)).value();
 }
 
 fn european_call_greeks_100() {
-    let tree_map = binomial_tree!(100);
+    let tree_map = binomial_tree_map!(100);
     let binom_tree: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(100.0), 100usize, Expiry(0.5), 0.3, 0.05, 0.0);
     let _val = binom_tree.eval(EuropeanOption::new(OptionType::Call, 95.0, 0.5)).greeks();
 }
 
 fn american_call_greeks_100() {
-    let tree_map = binomial_tree!(100);
+    let tree_map = binomial_tree_map!(100);
     let binom_tree: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(100.0), 1000usize, Expiry(0.5), 0.3, 0.05, 0.0);
     let _val = binom_tree.eval(AmericanOption::new(OptionType::Call, 95.0, 0.5)).greeks();
 }
 
 fn american_call_value_50() {
-    let tree_map = binomial_tree!(50);
+    let tree_map = binomial_tree_map!(50);
     let binom_tree: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(100.0), 100usize, Expiry(0.5), 0.3, 0.05, 0.0);
     let _val = binom_tree.eval(AmericanOption::new(OptionType::Call, 95.0, 0.5)).value();
 }
 
 fn american_call_greeks_50() {
-    let tree_map = binomial_tree!(50);
+    let tree_map = binomial_tree_map!(50);
     let binom_tree: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(100.0), 50usize, Expiry(0.5), 0.3, 0.05, 0.0);
     let _val = binom_tree.eval(AmericanOption::new(OptionType::Call, 95.0, 0.5)).greeks();
 }
 
 fn american_call_greeks_30_1000() {
     for _ in 0..1000 {
-        let tree_map = binomial_tree!(30);
+        let tree_map = binomial_tree_map!(30);
         let binom_tree: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(tree_map, Spot(100.0), 30usize, Expiry(0.5), 0.3, 0.05, 0.0);
         let _val = binom_tree.eval(AmericanOption::new(OptionType::Call, 95.0, 0.5)).greeks();
     }

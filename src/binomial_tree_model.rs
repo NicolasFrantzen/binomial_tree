@@ -1,6 +1,6 @@
 //use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
-use crate::binomial_tree_map::{BinomialTree, GetValue};
+use crate::binomial_tree_map::{BinomialTree, BinomialTreeImpl, GetValue};
 use crate::instruments::Option_;
 use crate::nodes::NodeNameTrait;
 
@@ -70,16 +70,16 @@ pub struct EvaluatedBinomialTreeModel<Map> {
 impl<Map: BinomialTree> EvaluatedBinomialTreeModel<Map> {
     pub fn value(&self) -> Value
     {
-        let initial_node = <Map as BinomialTree>::NodeNameType::default();
+        let initial_node = <Map as BinomialTreeImpl>::NodeNameType::default();
         let value = self.model.tree_map.get(&initial_node).unwrap().get();
         Value(*value)
     }
 
     pub fn delta(&self) -> Delta {
-        self.delta_from(&<Map as BinomialTree>::NodeNameType::default())
+        self.delta_from(&<Map as BinomialTreeImpl>::NodeNameType::default())
     }
 
-    fn delta_from(&self, from_node: &<Map as BinomialTree>::NodeNameType) -> Delta {
+    fn delta_from(&self, from_node: &<Map as BinomialTreeImpl>::NodeNameType) -> Delta {
         let last_up = from_node.up();
         let last_up_value =  self.model.tree_map.get(&last_up).unwrap().get();
         let last_down = from_node.down();
@@ -97,7 +97,7 @@ impl<Map: BinomialTree> EvaluatedBinomialTreeModel<Map> {
     }
 
     pub fn gamma(&self) -> Gamma {
-        let initial_node = <Map as BinomialTree>::NodeNameType::default();
+        let initial_node = <Map as BinomialTreeImpl>::NodeNameType::default();
         let node_u = initial_node.up();
         let node_d = initial_node.down();
         let delta_u = self.delta_from(&node_u);
@@ -114,7 +114,7 @@ impl<Map: BinomialTree> EvaluatedBinomialTreeModel<Map> {
     }
 
     pub fn theta(&self) -> Theta {
-        let initial_node = <Map as BinomialTree>::NodeNameType::default();
+        let initial_node = <Map as BinomialTreeImpl>::NodeNameType::default();
         let val_0 = self.model.tree_map.get(&initial_node).unwrap().get();
         let val_2 = self.model.tree_map.get_next_step(&initial_node).unwrap().get();
 

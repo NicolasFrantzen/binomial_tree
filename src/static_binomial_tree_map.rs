@@ -2,17 +2,16 @@ use std::cell::OnceCell;
 use std::ops::Deref;
 use hashbrown::HashMap;
 use binomial_tree_macro::binomial_tree_stack;
-use crate::binomial_tree_map::{calculate_capacity, BinomialTree};
+use crate::binomial_tree_map::{calculate_capacity, BinomialTree, BinomialTreeImpl};
 use crate::binomial_tree_map::BinomialTreeMapValue;
 use crate::binomial_tree_map::BinomialTreeMapNumericType;
 use crate::nodes::{NodeName2, NodeNameTrait, UpDown};
 
-pub(crate) static MAX_STATIC_TREE_SIZE: usize = 128;
+pub static MAX_STATIC_TREE_SIZE: usize = 128;
 const PRE_ALLOCATED_STACK: &'static [&'static [NodeName2]] = binomial_tree_stack!(128);
 
 #[derive(Debug)]
 pub struct StaticBinomialTreeMap {
-    //pub(crate) map: HashMap<NodeName, OnceCell<BinomialTreeMapNumericType>>,
     pub(crate) map: HashMap<NodeName2, OnceCell<BinomialTreeMapNumericType>>,
     pub(crate) stack: &'static [&'static [NodeName2]],
 }
@@ -42,7 +41,7 @@ impl StaticBinomialTreeMap {
     }
 }
 
-impl BinomialTree for StaticBinomialTreeMap {
+impl BinomialTreeImpl for StaticBinomialTreeMap {
     type NodeNameType = NodeName2;
     type NodeNameContainerType = &'static [Self::NodeNameType];
     type ValueType = f32;
@@ -65,3 +64,5 @@ impl BinomialTree for StaticBinomialTreeMap {
         self.get(node_name).expect("Map was not initialized").set(value).unwrap()
     }
 }
+
+impl BinomialTree for StaticBinomialTreeMap {}
