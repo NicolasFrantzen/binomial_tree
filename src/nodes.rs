@@ -7,19 +7,16 @@ pub /*(crate)*/ static ALL_UPDOWNS: [UpDown; 2] = [UpDown::Up, UpDown::Down];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) enum UpDown {
-    Initial,
     Up,
     Down,
 }
 
 impl From<&UpDown> for char {
     fn from(value: &UpDown) -> Self {
-        let s = match value {
-            UpDown::Initial => 'I',
+        match value {
             UpDown::Up => 'U',
             UpDown::Down => 'D',
-        };
-        s
+        }
     }
 }
 
@@ -35,7 +32,6 @@ impl TryFrom<char> for UpDown {
 
     fn try_from(value: char) -> Result<Self, Self::Error> {
         match value {
-            'I' => Ok(UpDown::Initial),
             'U' => Ok(UpDown::Up),
             'D' => Ok(UpDown::Down),
             _ => Err(())
@@ -75,7 +71,6 @@ impl NodeNameTrait for NodeName {
 
         for i in self.iter() {
             match i {
-                UpDown::Initial => {}
                 UpDown::Up => {
                     value *= up_probability;
                 }
@@ -155,7 +150,6 @@ impl NodeNameTrait for NodeName2 {
 
         for i in self.iter() {
             match i {
-                UpDown::Initial => {}
                 UpDown::Up => {
                     value *= up_value;
                 }
@@ -203,7 +197,6 @@ impl PartialEq for NodeName2 {
                 return other.name.len() == 0usize && self.direction == other.direction
             }
             match direction {
-                UpDown::Initial => {}
                 UpDown::Up => {
                     return &self.name[1..] == other.name && self.name[0] == direction;
                 }
@@ -217,7 +210,6 @@ impl PartialEq for NodeName2 {
                 return self.name.len() == 0usize && self.direction == other.direction
             }
             match direction {
-                UpDown::Initial => {}
                 UpDown::Up => {
                     return &other.name[1..] == self.name && other.name[0] == direction;
                 }
@@ -266,15 +258,14 @@ mod tests {
 
     #[test]
     fn test_tree_updown_from() {
-        assert_eq!(UpDown::try_from('I').unwrap(), UpDown::Initial);
         assert_eq!(UpDown::try_from('U').unwrap(), UpDown::Up);
         assert_eq!(UpDown::try_from('D').unwrap(), UpDown::Down);
 
 
-        assert_eq!(NodeName::try_from("IUD").unwrap(),
-                   NodeName{name: vec![UpDown::Initial, UpDown::Up, UpDown::Down]});
-        assert_eq!(NodeName::try_from("IUDD").unwrap(),
-                   NodeName{name: vec![UpDown::Initial, UpDown::Up, UpDown::Down, UpDown::Down]});
+        assert_eq!(NodeName::try_from("UD").unwrap(),
+                   NodeName{name: vec![UpDown::Up, UpDown::Down]});
+        assert_eq!(NodeName::try_from("UDD").unwrap(),
+                   NodeName{name: vec![UpDown::Up, UpDown::Down, UpDown::Down]});
     }
 
     #[test]

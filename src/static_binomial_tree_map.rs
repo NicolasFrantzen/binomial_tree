@@ -66,3 +66,12 @@ impl BinomialTreeImpl for StaticBinomialTreeMap {
 }
 
 impl BinomialTree for StaticBinomialTreeMap {}
+
+#[cfg(test)]
+mod tests {
+    //use super::*;
+
+    #[test]
+    fn test_static_binomial_tree() {
+    }
+}

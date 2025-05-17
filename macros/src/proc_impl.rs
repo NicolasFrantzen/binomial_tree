@@ -3,9 +3,6 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse2, LitInt};
 
-// TODO: Put in a separate crate to reuse
-pub(crate) static ALL_UPDOWNS: [UpDown; 2] = [UpDown::Up, UpDown::Down];
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) enum UpDown {
     Up,
@@ -59,7 +56,7 @@ pub(crate) fn binomial_stack(input: TokenStream) -> TokenStream {
 }
 
 fn create_level(i: usize) -> TokenStream {
-    let iter: Vec<NodeName> =  ALL_UPDOWNS
+    let iter: Vec<NodeName> =  [UpDown::Up, UpDown::Down]
         .iter()
         .cloned()
         .combinations_with_replacement(i)
@@ -80,5 +77,8 @@ mod tests {
     #[test]
     fn test_proc() {
         println!("{:?}", binomial_stack(quote! { 3 }));
+
+        //let expected = quote!{ [[NodeName2 { name: [], direction: None }], [NodeName2 { name: [Up], direction: None }, NodeName2 { name: [Down], direction: None }], [NodeName2 { name: [Up, Up], direction: None }, NodeName2 { name: [Up, Down], direction: None }, NodeName2 { name: [Down, Down], direction: None }], [NodeName2 { name: [Up, Up, Up], direction: None }, NodeName2 { name: [Up, Up, Down], direction: None }, NodeName2 { name: [Up, Down, Down], direction: None }, NodeName2 { name: [Down, Down, Down], direction: None }]] };
+        //assert_eq!(binomial_stack(quote! { 3 }), expected);
     }
 }

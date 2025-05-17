@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "binomial-tree-macro"
+name = "binomial_tree_macro"
 version = "0.1.0"
 dependencies = [
  "itertools",

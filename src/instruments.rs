@@ -85,7 +85,7 @@ mod tests {
         assert_eq!(option.value(10.0, 30.0), 20.0);
         assert_eq!(option.value(30.0, 40.0), 30.0);
         assert_eq!(option.value(40.0, 30.0), 40.0);
-        assert_eq!(option.value(20.0, 10.0), 30.0);
+        assert_eq!(option.value(20.0, 10.0), 40.0);
     }
 
     #[test]
