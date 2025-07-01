@@ -10,20 +10,29 @@ use std::hash::Hash;
 use std::ops::Deref;
 
 
-pub(crate) trait BinomialTreeImpl {
+pub(crate) trait BinomialTreeMapImpl {
     type NodeNameType: NodeNameTrait + Debug + Hash + Default;
-    type NodeNameContainerType;
     type ValueType: From<f32> + Into<f32>;
     type NodeType: GetValue;
 
-    fn iter(&self) -> impl DoubleEndedIterator + ExactSizeIterator<Item = &impl Deref<Target = [Self::NodeNameType]>>;
     fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType>;
     fn get_next_step(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType>;
-    fn set(&self, node_name: &Self::NodeNameType, value: Self::ValueType);
+    fn set(&mut self, node_name: &Self::NodeNameType, value: Self::ValueType);
 }
 
 #[allow(private_bounds)]
-pub trait BinomialTree: BinomialTreeImpl {
+pub trait BinomialTreeMap: BinomialTreeMapImpl {
+}
+
+pub(crate) trait BinomialTreeStackImpl {
+    //type NodeNameType: NodeNameTrait + Debug + Hash + Default;
+    type NodeNameContainerType: BinomialTreeMapImpl + Default;
+
+    fn iter(&self) -> impl DoubleEndedIterator + ExactSizeIterator<Item=&impl Deref<Target=[<<Self as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType]>>;
+}
+
+#[allow(private_bounds)]
+pub trait BinomialTreeStack: BinomialTreeStackImpl {
 }
 
 pub(crate) type BinomialTreeMapNumericType = f32;
@@ -41,7 +50,8 @@ impl GetValue for BinomialTreeMapValue<f32> {
     }
 }
 
-pub(crate) struct BinomialTreeMap {
+#[derive(Default)]
+pub(crate) struct DynamicBinomialTreeMap {
     // Map consists of sorted keys only (with U < D). For example: UUUDD. Values are OnceLock, so they can be replaced without mutable borrowing
     map: HashMap<NodeName, BinomialTreeMapValue<BinomialTreeMapNumericType>>,
     stack: Vec<Vec<NodeName>>, // TODO: Fix this, it's quite expensive to construct
@@ -71,7 +81,7 @@ const fn calculate_step_capacity(step_number: usize) -> usize {
     }
 }
 
-impl BinomialTreeMap {
+impl DynamicBinomialTreeMap {
     #[allow(dead_code)]
     pub(crate) fn new(number_of_steps: usize) -> Self {
         let mut map = HashMap::<NodeName, BinomTreeValueType>::with_capacity(calculate_capacity(number_of_steps));
@@ -104,15 +114,10 @@ impl BinomialTreeMap {
     }
 }
 
-impl BinomialTreeImpl for BinomialTreeMap {
+impl BinomialTreeMapImpl for DynamicBinomialTreeMap {
     type NodeNameType = NodeName;
-    type NodeNameContainerType = Vec<Self::NodeNameType>;
     type ValueType = f32;
     type NodeType = BinomialTreeMapValue<Self::ValueType>;
-
-    fn iter(&self) -> impl DoubleEndedIterator + ExactSizeIterator<Item = &impl Deref<Target = [Self::NodeNameType]>> {
-        self.stack.iter()
-    }
 
     fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType> {
         self.map.get(node_name)
@@ -122,12 +127,24 @@ impl BinomialTreeImpl for BinomialTreeMap {
         self.map.get(&node_name.up())
     }
 
-    fn set(&self, node_name: &Self::NodeNameType, value: Self::ValueType) {
-        self.get(node_name).expect("Map was not initialized").set(value).unwrap()
+    fn set(&mut self, node_name: &Self::NodeNameType, value: Self::ValueType) {
+        //self.get(node_name).expect("Map was not initialized").set(value).unwrap()
+        self.map.entry(node_name.clone()).or_insert(OnceCell::new()).set(value).unwrap();
     }
 }
 
-impl BinomialTree for BinomialTreeMap {}
+impl BinomialTreeMap for DynamicBinomialTreeMap {}
+
+impl BinomialTreeStackImpl for DynamicBinomialTreeMap {
+    //type NodeNameType = NodeName;
+    type NodeNameContainerType = DynamicBinomialTreeMap;
+
+    fn iter(&self) -> impl DoubleEndedIterator + ExactSizeIterator<Item=&impl Deref<Target=[<<Self as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType]>> {
+        self.stack.iter()
+    }
+}
+
+impl BinomialTreeStack for DynamicBinomialTreeMap {}
 
 
 #[cfg(test)]
@@ -136,17 +153,17 @@ mod tests {
 
     #[test]
     fn test_stack_map_size() {
-        assert_eq!(BinomialTreeMap::new(3).map.len(), calculate_capacity(3));
-        assert_eq!(BinomialTreeMap::new(4).map.len(), calculate_capacity(4));
-        assert_eq!(BinomialTreeMap::new(5).map.len(), calculate_capacity(5));
-        assert_eq!(BinomialTreeMap::new(6).map.len(), calculate_capacity(6));
-        assert_eq!(BinomialTreeMap::new(7).map.len(), calculate_capacity(7));
-        assert_eq!(BinomialTreeMap::new(8).map.len(), calculate_capacity(8));
+        assert_eq!(DynamicBinomialTreeMap::new(3).map.len(), calculate_capacity(3));
+        assert_eq!(DynamicBinomialTreeMap::new(4).map.len(), calculate_capacity(4));
+        assert_eq!(DynamicBinomialTreeMap::new(5).map.len(), calculate_capacity(5));
+        assert_eq!(DynamicBinomialTreeMap::new(6).map.len(), calculate_capacity(6));
+        assert_eq!(DynamicBinomialTreeMap::new(7).map.len(), calculate_capacity(7));
+        assert_eq!(DynamicBinomialTreeMap::new(8).map.len(), calculate_capacity(8));
     }
 
     #[test]
     fn test_stack_map() {
-        let tree: BinomialTreeMap = BinomialTreeMap::new(3);
+        let tree: DynamicBinomialTreeMap = DynamicBinomialTreeMap::new(3);
         let mut stack_iter = tree.stack.iter().rev();
         assert_eq!(stack_iter.next().unwrap(),
                    &vec!["UUU".try_into().unwrap(), "UUD".try_into().unwrap(), "UDD".try_into().unwrap(), "DDD".try_into().unwrap()]);
