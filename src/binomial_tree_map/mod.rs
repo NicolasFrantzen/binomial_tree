@@ -1,4 +1,4 @@
-use crate::nodes::NodeNameTrait;
+use nodes::NodeNameTrait;
 
 use std::cell::OnceCell;
 use std::fmt::Debug;
@@ -8,6 +8,7 @@ use std::ops::Deref;
 mod dynamic;
 pub mod r#static;
 mod capacity;
+pub(crate) mod nodes;
 
 pub(crate) type BinomialTreeMapNumericType = f32;
 pub(crate) type BinomialTreeMapValue<T> = OnceCell<T>;

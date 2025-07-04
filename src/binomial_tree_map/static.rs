@@ -6,10 +6,10 @@ use binomial_tree_macro::binomial_tree_stack;
 use crate::binomial_tree_map::capacity::calculate_capacity;
 use crate::binomial_tree_map::{BinomTreeValueType, BinomialTreeMapImpl, BinomialTreeStackImpl};
 use crate::binomial_tree_map::BinomialTreeMapNumericType;
-use crate::nodes::{NodeName2, NodeNameTrait, UpDown};
+use crate::binomial_tree_map::nodes::{NodeName2, NodeNameTrait, UpDown};
 
 pub const MAX_TREE_SIZE: usize = 128;
-const PRE_ALLOCATED_STACK: &'static [&'static [NodeName2]] = binomial_tree_stack!(128);
+const PRE_ALLOCATED_STACK: &[&[NodeName2]] = binomial_tree_stack!(128);
 pub(crate) const MAX_CAPACITY: usize = calculate_capacity(MAX_TREE_SIZE);
 
 #[derive(Debug, Default)]

@@ -1,10 +1,9 @@
 use hashbrown::HashMap;
 use std::ops::Deref;
-use std::cell::OnceCell;
 use itertools::Itertools;
 use crate::binomial_tree_map::capacity::{calculate_capacity, calculate_step_capacity};
 use crate::binomial_tree_map::{BinomTreeValueType, BinomialTreeMapImpl, BinomialTreeMapNumericType, BinomialTreeMapValue, BinomialTreeStackImpl};
-use crate::nodes::{NodeName, NodeNameTrait, ALL_UPDOWNS};
+use crate::binomial_tree_map::nodes::{NodeName, NodeNameTrait, ALL_UPDOWNS};
 
 #[derive(Default)]
 pub(crate) struct DynamicBinomialTreeMap {
@@ -24,7 +23,7 @@ impl DynamicBinomialTreeMap {
                 .iter()
                 .cloned()
                 .combinations_with_replacement(i)
-                .map(|x| NodeName::new(x) );
+                .map(NodeName::new);
 
             for node_name in iter.clone() {
                 // NOTE: Unsafe is fine here, since we insert unique combinations
@@ -60,7 +59,7 @@ impl BinomialTreeMapImpl for DynamicBinomialTreeMap {
     }
 
     fn set(&mut self, node_name: &Self::NodeNameType, value: Self::NumericType) {
-        self.map.entry(node_name.clone()).or_insert(OnceCell::new()).set(value).unwrap();
+        self.map.entry(node_name.clone()).or_default().set(value).unwrap();
     }
 }
 
@@ -76,7 +75,7 @@ impl BinomialTreeStackImpl for DynamicBinomialTreeMap {
 mod tests {
     use crate::binomial_tree_map::capacity::calculate_capacity;
     use crate::binomial_tree_map::dynamic::DynamicBinomialTreeMap;
-    use crate::nodes::NodeName;
+    use crate::binomial_tree_map::nodes::NodeName;
 
     #[test]
     fn test_stack_map_size() {

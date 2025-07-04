@@ -1,6 +1,6 @@
 use crate::binomial_tree_map::{BinomialTreeMapImpl, BinomialTreeStackImpl, GetValue};
 use crate::instruments::Option_;
-use crate::nodes::NodeNameTrait;
+use crate::binomial_tree_map::nodes::NodeNameTrait;
 
 pub struct BinomialTreeModel<Stack> {
     stack: Stack,
@@ -51,11 +51,10 @@ impl<Stack: BinomialTreeStackImpl> BinomialTreeModel<Stack> {
                     let value = (up_value * p + down_value * (1.0 - p)) * self.discount_factor;
 
                     let option_value = option.value(value, price);
-                    tree_map.set(
-                        &node, option_value.into());
+                    tree_map.set(node, option_value.into());
                 } else {
                     let option_value = option.intrinsic_value(price);
-                    tree_map.set(&node, option_value.into());
+                    tree_map.set(node, option_value.into());
                 }
             });
         }

@@ -23,7 +23,7 @@ impl From<&UpDown> for char {
 impl std::fmt::Display for UpDown {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 
-        write!(f, "{}", char::try_from(self).unwrap())
+        write!(f, "{}", char::from(self))
     }
 }
 
@@ -132,10 +132,6 @@ pub(crate) struct NodeName2 {
 impl NodeNameTrait for NodeName2 {
     type NameType = &'static [UpDown];
 
-    /*fn new(name: Self::NameType) -> Self {
-        Self { name, direction: None }
-    }*/
-
     fn up(&self) -> Self {
         Self { name: self.name, direction: Some(UpDown::Up) }
     }
@@ -193,8 +189,8 @@ impl PartialEq for NodeName2 {
             return self.name == other.name
         }
         if let Some(direction) = other.direction {
-            if self.name.len() == 0usize {
-                return other.name.len() == 0usize && self.direction == other.direction
+            if self.name.is_empty() {
+                return other.name.is_empty() && self.direction == other.direction
             }
             match direction {
                 UpDown::Up => {
@@ -206,8 +202,8 @@ impl PartialEq for NodeName2 {
             }
         }
         if let Some(direction) = self.direction {
-            if other.name.len() == 0usize {
-                return self.name.len() == 0usize && self.direction == other.direction
+            if other.name.is_empty() {
+                return self.name.is_empty() && self.direction == other.direction
             }
             match direction {
                 UpDown::Up => {
