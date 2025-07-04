@@ -1,12 +1,8 @@
-//use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-
 use crate::binomial_tree_map::{BinomialTreeMapImpl, BinomialTreeStackImpl, GetValue};
 use crate::instruments::Option_;
 use crate::nodes::NodeNameTrait;
-use crate::binomial_tree_map::r#static::StaticBinomialTreeMap;
 
 pub struct BinomialTreeModel<Stack> {
-    //tree_map: Map,
     stack: Stack,
     params: VolatilityParameters,
     spot: Spot,
@@ -14,6 +10,7 @@ pub struct BinomialTreeModel<Stack> {
     time_step: f32,
 }
 
+#[allow(private_bounds)]
 impl<Stack: BinomialTreeStackImpl> BinomialTreeModel<Stack> {
     pub fn new(stack: Stack, initial_price: Spot, number_of_steps: usize, expiry: Expiry, volatility: f32, interest_rate: f32, dividends: f32) -> Self {
         let time_step = expiry.0 / number_of_steps as f32;
@@ -70,13 +67,14 @@ impl<Stack: BinomialTreeStackImpl> BinomialTreeModel<Stack> {
     }
 }
 
+#[allow(private_bounds)]
 pub struct EvaluatedBinomialTreeModelImpl<Stack: BinomialTreeStackImpl> {
     model: BinomialTreeModel<Stack>,
     map: <Stack as BinomialTreeStackImpl>::NodeNameContainerType,
 }
 
+#[allow(private_bounds)]
 impl<Stack: BinomialTreeStackImpl> EvaluatedBinomialTreeModelImpl<Stack> {
-
     pub fn value(&self) -> Value
     {
         let initial_node = <<Stack as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType::default();

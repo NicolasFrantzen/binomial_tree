@@ -75,7 +75,6 @@ impl BinomialTreeStackImpl for DynamicBinomialTreeMap {
 #[cfg(test)]
 mod tests {
     use crate::binomial_tree_map::capacity::calculate_capacity;
-    use crate::binomial_tree_map::*;
     use crate::binomial_tree_map::dynamic::DynamicBinomialTreeMap;
     use crate::nodes::NodeName;
 
