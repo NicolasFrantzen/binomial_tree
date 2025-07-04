@@ -9,15 +9,18 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::Deref;
 
+pub(crate) type BinomialTreeMapNumericType = f32;
+pub(crate) type BinomialTreeMapValue<T> = OnceCell<T>;
+pub(crate) type BinomTreeValueType = BinomialTreeMapValue<BinomialTreeMapNumericType>;
 
 pub(crate) trait BinomialTreeMapImpl {
     type NodeNameType: NodeNameTrait + Debug + Hash + Default;
-    type ValueType: From<f32> + Into<f32>;
-    type NodeType: GetValue;
+    type NumericType: From<f32> + Into<f32>;
+    type ValueType: GetValue;
 
-    fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType>;
-    fn get_next_step(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType>;
-    fn set(&mut self, node_name: &Self::NodeNameType, value: Self::ValueType);
+    fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::ValueType>;
+    fn get_next_step(&self, node_name: &Self::NodeNameType) -> Option<&Self::ValueType>;
+    fn set(&mut self, node_name: &Self::NodeNameType, value: Self::NumericType);
 }
 
 #[allow(private_bounds)]
@@ -35,18 +38,20 @@ pub(crate) trait BinomialTreeStackImpl {
 pub trait BinomialTreeStack: BinomialTreeStackImpl {
 }
 
-pub(crate) type BinomialTreeMapNumericType = f32;
-pub(crate) type BinomialTreeMapValue<T> = OnceCell<T>;
-pub(crate) type BinomTreeValueType = BinomialTreeMapValue<BinomialTreeMapNumericType>;
-
 pub(crate) trait GetValue {
     fn get(&self) -> &f32;
 }
 
-impl GetValue for BinomialTreeMapValue<f32> {
+impl GetValue for BinomTreeValueType {
     fn get(&self) -> &f32 {
         let value =  self.get();
         value.expect("The tree should be evaluated backwards")
+    }
+}
+
+impl GetValue for BinomialTreeMapNumericType {
+    fn get(&self) -> &f32 {
+        &self
     }
 }
 
@@ -116,18 +121,18 @@ impl DynamicBinomialTreeMap {
 
 impl BinomialTreeMapImpl for DynamicBinomialTreeMap {
     type NodeNameType = NodeName;
-    type ValueType = f32;
-    type NodeType = BinomialTreeMapValue<Self::ValueType>;
+    type NumericType = f32;
+    type ValueType = BinomialTreeMapValue<Self::NumericType>;
 
-    fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType> {
+    fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::ValueType> {
         self.map.get(node_name)
     }
 
-    fn get_next_step(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType> {
+    fn get_next_step(&self, node_name: &Self::NodeNameType) -> Option<&Self::ValueType> {
         self.map.get(&node_name.up())
     }
 
-    fn set(&mut self, node_name: &Self::NodeNameType, value: Self::ValueType) {
+    fn set(&mut self, node_name: &Self::NodeNameType, value: Self::NumericType) {
         //self.get(node_name).expect("Map was not initialized").set(value).unwrap()
         self.map.entry(node_name.clone()).or_insert(OnceCell::new()).set(value).unwrap();
     }

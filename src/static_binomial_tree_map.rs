@@ -1,14 +1,16 @@
 use std::cell::OnceCell;
 use std::ops::Deref;
 use hashbrown::HashMap;
+use id_arena::{Arena, Id};
 use binomial_tree_macro::binomial_tree_stack;
-use crate::binomial_tree_map::{calculate_capacity, BinomialTreeMap, BinomialTreeMapImpl, BinomialTreeStack, BinomialTreeStackImpl};
+use crate::binomial_tree_map::{calculate_capacity, BinomTreeValueType, BinomialTreeMap, BinomialTreeMapImpl, BinomialTreeStack, BinomialTreeStackImpl};
 use crate::binomial_tree_map::BinomialTreeMapValue;
 use crate::binomial_tree_map::BinomialTreeMapNumericType;
 use crate::nodes::{NodeName2, NodeNameTrait, UpDown};
 
-pub static MAX_STATIC_TREE_SIZE: usize = 128;
+pub const MAX_TREE_SIZE: usize = 128;
 const PRE_ALLOCATED_STACK: &'static [&'static [NodeName2]] = binomial_tree_stack!(128);
+pub(crate) const MAX_CAPACITY: usize = calculate_capacity(MAX_TREE_SIZE);
 
 #[derive(Debug, Default)]
 pub struct StaticBinomialTreeMap {
@@ -41,39 +43,48 @@ impl StaticBinomialTreeMap {
     }
 }
 
-/*
-    type NodeNameType = NodeName;
-    type NodeNameContainerType = Vec<Self::NodeNameType>;
-    type ValueType = f32;
-    type NodeType = BinomialTreeMapValue<Self::ValueType>;
- */
-
-#[derive(Default)]
 pub struct StaticContainer {
-    pub(crate) map: HashMap<NodeName2, OnceCell<BinomialTreeMapNumericType>>,
+    arena: Arena<BinomTreeValueType>,
+    pub(crate) map: HashMap<NodeName2, Id<BinomTreeValueType>>,
+}
+
+impl Default for StaticContainer {
+    fn default() -> Self {
+        Self {
+            //arena: Bump::new(),
+            //map: HashMap::<NodeName2, OnceCell<BinomialTreeMapNumericType>>::new_in(arena),
+
+            arena: Arena::with_capacity(MAX_CAPACITY),
+            map: HashMap::<NodeName2, Id<BinomTreeValueType>>::with_capacity(MAX_CAPACITY)
+        }
+    }
 }
 
 impl BinomialTreeMapImpl for StaticContainer {
     type NodeNameType = NodeName2;
     //type NodeNameContainerType = &'static [Self::NodeNameType];
-    type ValueType = f32;
-    type NodeType = BinomialTreeMapValue<Self::ValueType>;
+    type NumericType = BinomialTreeMapNumericType;
+    type ValueType = BinomTreeValueType;
 
     /*fn iter(&self) -> impl DoubleEndedIterator + ExactSizeIterator<Item = &impl Deref<Target = [Self::NodeNameType]>> {
         self.stack.iter()
     }*/
 
-    fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType> {
-        self.map.get(node_name)
+    fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::ValueType> {
+        let id = self.map.get(node_name)?;
+        Some(&self.arena[*id])
     }
 
-    fn get_next_step(&self, node_name: &Self::NodeNameType) -> Option<&Self::NodeType> {
+    fn get_next_step(&self, node_name: &Self::NodeNameType) -> Option<&Self::ValueType> {
         let (key, _) = self.map.get_key_value(&node_name.up()).unwrap();
         self.get(&key.down())
     }
 
-    fn set(&mut self, node_name: &Self::NodeNameType, value: Self::ValueType) {
-        self.map.entry(node_name.clone()).or_insert(OnceCell::new()).set(value).unwrap();
+    fn set(&mut self, node_name: &Self::NodeNameType, value: Self::NumericType) {
+        let id = self.arena.alloc(OnceCell::new());
+        self.map.entry(node_name.clone()).or_insert(id);
+
+        self.arena[id].set(value).unwrap();
         //self.get(node_name).expect("Map was not initialized").set(value).unwrap()
     }
 }

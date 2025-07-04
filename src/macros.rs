@@ -15,9 +15,9 @@ macro_rules! eval_binomial_tree {
             use $crate::binomial_tree_model::BinomialTreeModel;
             use $crate::binomial_tree_model::{Spot, Expiry};
             use $crate::instruments::{$option, OptionType, Option_};
-            use $crate::static_binomial_tree_map::{StaticBinomialTreeMap, MAX_STATIC_TREE_SIZE};
+            use $crate::static_binomial_tree_map::{StaticBinomialTreeMap, MAX_TREE_SIZE};
 
-            if $N > MAX_STATIC_TREE_SIZE {
+            if $N > MAX_TREE_SIZE {
                 // We need to construct the tree dynamical
 
                 todo!()
