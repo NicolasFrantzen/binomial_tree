@@ -1,6 +1,6 @@
 use crate::nodes::{NodeNameTrait, NodeName, ALL_UPDOWNS};
+use crate::binomial_tree_capacity::{calculate_capacity, calculate_step_capacity};
 
-use const_for::const_for;
 use hashbrown::HashMap;
 use itertools::Itertools;
 
@@ -8,6 +8,7 @@ use std::cell::OnceCell;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::Deref;
+
 
 pub(crate) type BinomialTreeMapNumericType = f32;
 pub(crate) type BinomialTreeMapValue<T> = OnceCell<T>;
@@ -23,19 +24,11 @@ pub(crate) trait BinomialTreeMapImpl {
     fn set(&mut self, node_name: &Self::NodeNameType, value: Self::NumericType);
 }
 
-#[allow(private_bounds)]
-pub trait BinomialTreeMap: BinomialTreeMapImpl {
-}
-
 pub(crate) trait BinomialTreeStackImpl {
     //type NodeNameType: NodeNameTrait + Debug + Hash + Default;
     type NodeNameContainerType: BinomialTreeMapImpl + Default;
 
     fn iter(&self) -> impl DoubleEndedIterator + ExactSizeIterator<Item=&impl Deref<Target=[<<Self as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType]>>;
-}
-
-#[allow(private_bounds)]
-pub trait BinomialTreeStack: BinomialTreeStackImpl {
 }
 
 pub(crate) trait GetValue {
@@ -49,41 +42,11 @@ impl GetValue for BinomTreeValueType {
     }
 }
 
-impl GetValue for BinomialTreeMapNumericType {
-    fn get(&self) -> &f32 {
-        &self
-    }
-}
-
 #[derive(Default)]
 pub(crate) struct DynamicBinomialTreeMap {
     // Map consists of sorted keys only (with U < D). For example: UUUDD. Values are OnceLock, so they can be replaced without mutable borrowing
     map: HashMap<NodeName, BinomialTreeMapValue<BinomialTreeMapNumericType>>,
     stack: Vec<Vec<NodeName>>, // TODO: Fix this, it's quite expensive to construct
-}
-
-const fn binom(n: usize, k: usize) -> usize {
-    let mut res = 1;
-    const_for!(i in 0..k => {
-        res = res * (n - i) /
-            (i + 1);
-    });
-    res
-}
-
-// A special case of binomial formula with k = 2 and n = number_of_steps + 2
-pub(crate) const fn calculate_capacity(number_of_steps: usize) -> usize {
-    binom(number_of_steps + 2usize, 2usize)
-}
-
-const fn calculate_step_capacity(step_number: usize) -> usize {
-    if step_number > 1 {
-        calculate_capacity(step_number) - calculate_capacity(step_number-1)
-    }
-    else
-    {
-        1usize
-    }
 }
 
 impl DynamicBinomialTreeMap {
@@ -133,24 +96,17 @@ impl BinomialTreeMapImpl for DynamicBinomialTreeMap {
     }
 
     fn set(&mut self, node_name: &Self::NodeNameType, value: Self::NumericType) {
-        //self.get(node_name).expect("Map was not initialized").set(value).unwrap()
         self.map.entry(node_name.clone()).or_insert(OnceCell::new()).set(value).unwrap();
     }
 }
 
-impl BinomialTreeMap for DynamicBinomialTreeMap {}
-
 impl BinomialTreeStackImpl for DynamicBinomialTreeMap {
-    //type NodeNameType = NodeName;
     type NodeNameContainerType = DynamicBinomialTreeMap;
 
     fn iter(&self) -> impl DoubleEndedIterator + ExactSizeIterator<Item=&impl Deref<Target=[<<Self as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType]>> {
         self.stack.iter()
     }
 }
-
-impl BinomialTreeStack for DynamicBinomialTreeMap {}
-
 
 #[cfg(test)]
 mod tests {

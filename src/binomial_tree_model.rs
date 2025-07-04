@@ -1,8 +1,9 @@
 //use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
-use crate::binomial_tree_map::{BinomialTreeMap, BinomialTreeMapImpl, BinomialTreeStack, BinomialTreeStackImpl, GetValue};
+use crate::binomial_tree_map::{BinomialTreeMapImpl, BinomialTreeStackImpl, DynamicBinomialTreeMap, GetValue};
 use crate::instruments::Option_;
 use crate::nodes::NodeNameTrait;
+use crate::static_binomial_tree_map::{StaticBinomialTreeMap, StaticContainer};
 
 pub struct BinomialTreeModel<Stack> {
     //tree_map: Map,
@@ -27,7 +28,7 @@ impl<Stack: BinomialTreeStackImpl> BinomialTreeModel<Stack> {
         }
     }
 
-    pub fn eval<T: Option_ + Sync>(self, option: T) -> EvaluatedBinomialTreeModel<Stack>
+    pub fn eval<T: Option_ + Sync>(self, option: T) -> EvaluatedBinomialTreeModelImpl<Stack>
     {
         let p = self.params.p();
 
@@ -62,19 +63,19 @@ impl<Stack: BinomialTreeStackImpl> BinomialTreeModel<Stack> {
             });
         }
 
-        EvaluatedBinomialTreeModel{
+        EvaluatedBinomialTreeModelImpl {
             model: self,
             map: tree_map,
         }
     }
 }
 
-pub struct EvaluatedBinomialTreeModel<Stack: BinomialTreeStackImpl> {
+pub struct EvaluatedBinomialTreeModelImpl<Stack: BinomialTreeStackImpl> {
     model: BinomialTreeModel<Stack>,
     map: <Stack as BinomialTreeStackImpl>::NodeNameContainerType,
 }
 
-impl<Stack: BinomialTreeStackImpl> EvaluatedBinomialTreeModel<Stack> {
+impl<Stack: BinomialTreeStackImpl> EvaluatedBinomialTreeModelImpl<Stack> {
 
     pub fn value(&self) -> Value
     {
