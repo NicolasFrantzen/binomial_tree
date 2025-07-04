@@ -1,9 +1,9 @@
 //use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
-use crate::binomial_tree_map::{BinomialTreeMapImpl, BinomialTreeStackImpl, DynamicBinomialTreeMap, GetValue};
+use crate::binomial_tree_map::{BinomialTreeMapImpl, BinomialTreeStackImpl, GetValue};
 use crate::instruments::Option_;
 use crate::nodes::NodeNameTrait;
-use crate::static_binomial_tree_map::{StaticBinomialTreeMap, StaticContainer};
+use crate::binomial_tree_map::r#static::StaticBinomialTreeMap;
 
 pub struct BinomialTreeModel<Stack> {
     //tree_map: Map,
@@ -192,7 +192,7 @@ pub struct Theta(pub f32);
 mod tests {
     use crate::binomial_tree_map;
     use crate::instruments::{AmericanOption, EuropeanOption, OptionType};
-    use crate::static_binomial_tree_map::StaticBinomialTreeMap;
+    use crate::binomial_tree_map::r#static::StaticBinomialTreeMap;
     use super::*;
 
     #[test]

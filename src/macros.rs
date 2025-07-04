@@ -3,7 +3,7 @@
 macro_rules! binomial_tree_map {
     ($N:literal) => {
         {
-            $crate::static_binomial_tree_map::StaticBinomialTreeMap::new::<{ $N+1 }>()
+            $crate::binomial_tree_map::r#static::StaticBinomialTreeMap::new::<{ $N+1 }>()
         }
     };
 }
@@ -12,10 +12,10 @@ macro_rules! binomial_tree_map {
 macro_rules! eval_binomial_tree {
     ($N:literal, $option:ty, $option_type:ident, $strike:expr, $spot:expr, $expiry:expr, $volatility:expr, $interest_rate:expr, $dividend_rate:expr) => {
         {
-            use $crate::binomial_tree_model::BinomialTreeModel;
-            use $crate::binomial_tree_model::{Spot, Expiry};
+            use $crate::model::BinomialTreeModel;
+            use $crate::model::{Spot, Expiry};
             use $crate::instruments::{$option, OptionType, Option_};
-            use $crate::static_binomial_tree_map::{StaticBinomialTreeMap, MAX_TREE_SIZE};
+            use $crate::binomial_tree_map::r#static::{StaticBinomialTreeMap, MAX_TREE_SIZE};
 
             if $N > MAX_TREE_SIZE {
                 // We need to construct the tree dynamical

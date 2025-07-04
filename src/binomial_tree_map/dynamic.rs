@@ -1,46 +1,10 @@
-use crate::nodes::{NodeNameTrait, NodeName, ALL_UPDOWNS};
-use crate::binomial_tree_capacity::{calculate_capacity, calculate_step_capacity};
-
 use hashbrown::HashMap;
-use itertools::Itertools;
-
-use std::cell::OnceCell;
-use std::fmt::Debug;
-use std::hash::Hash;
 use std::ops::Deref;
-
-
-pub(crate) type BinomialTreeMapNumericType = f32;
-pub(crate) type BinomialTreeMapValue<T> = OnceCell<T>;
-pub(crate) type BinomTreeValueType = BinomialTreeMapValue<BinomialTreeMapNumericType>;
-
-pub(crate) trait BinomialTreeMapImpl {
-    type NodeNameType: NodeNameTrait + Debug + Hash + Default;
-    type NumericType: From<f32> + Into<f32>;
-    type ValueType: GetValue;
-
-    fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::ValueType>;
-    fn get_next_step(&self, node_name: &Self::NodeNameType) -> Option<&Self::ValueType>;
-    fn set(&mut self, node_name: &Self::NodeNameType, value: Self::NumericType);
-}
-
-pub(crate) trait BinomialTreeStackImpl {
-    //type NodeNameType: NodeNameTrait + Debug + Hash + Default;
-    type NodeNameContainerType: BinomialTreeMapImpl + Default;
-
-    fn iter(&self) -> impl DoubleEndedIterator + ExactSizeIterator<Item=&impl Deref<Target=[<<Self as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType]>>;
-}
-
-pub(crate) trait GetValue {
-    fn get(&self) -> &f32;
-}
-
-impl GetValue for BinomTreeValueType {
-    fn get(&self) -> &f32 {
-        let value =  self.get();
-        value.expect("The tree should be evaluated backwards")
-    }
-}
+use std::cell::OnceCell;
+use itertools::Itertools;
+use crate::binomial_tree_map::capacity::{calculate_capacity, calculate_step_capacity};
+use crate::binomial_tree_map::{BinomTreeValueType, BinomialTreeMapImpl, BinomialTreeMapNumericType, BinomialTreeMapValue, BinomialTreeStackImpl};
+use crate::nodes::{NodeName, NodeNameTrait, ALL_UPDOWNS};
 
 #[derive(Default)]
 pub(crate) struct DynamicBinomialTreeMap {
@@ -110,7 +74,10 @@ impl BinomialTreeStackImpl for DynamicBinomialTreeMap {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::binomial_tree_map::capacity::calculate_capacity;
+    use crate::binomial_tree_map::*;
+    use crate::binomial_tree_map::dynamic::DynamicBinomialTreeMap;
+    use crate::nodes::NodeName;
 
     #[test]
     fn test_stack_map_size() {

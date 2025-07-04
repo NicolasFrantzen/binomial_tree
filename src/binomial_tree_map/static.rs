@@ -3,7 +3,7 @@ use std::ops::Deref;
 use hashbrown::HashMap;
 use id_arena::{Arena, Id};
 use binomial_tree_macro::binomial_tree_stack;
-use crate::binomial_tree_capacity::calculate_capacity;
+use crate::binomial_tree_map::capacity::calculate_capacity;
 use crate::binomial_tree_map::{BinomTreeValueType, BinomialTreeMapImpl, BinomialTreeStackImpl};
 use crate::binomial_tree_map::BinomialTreeMapNumericType;
 use crate::nodes::{NodeName2, NodeNameTrait, UpDown};
