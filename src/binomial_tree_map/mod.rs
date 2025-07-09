@@ -5,8 +5,8 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::Deref;
 
-mod dynamic;
-pub mod r#static;
+pub mod dynamic; // TODO: Visibility
+pub mod r#static; // TODO: Visibility
 mod capacity;
 pub(crate) mod nodes;
 

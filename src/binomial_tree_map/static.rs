@@ -18,9 +18,9 @@ pub struct StaticBinomialTreeMap {
 }
 
 impl StaticBinomialTreeMap {
-    pub fn new<const N: usize>() -> StaticBinomialTreeMap
+    pub fn with_capacity(capacity: usize) -> StaticBinomialTreeMap
     {
-        let stack: &'static [&'static [NodeName2]] = &PRE_ALLOCATED_STACK[..N]; // TODO: This trick could probably be used in a dynamic case as well!
+        let stack: &'static [&'static [NodeName2]] = &PRE_ALLOCATED_STACK[..=capacity]; // TODO: This trick could probably be used in a dynamic case as well!
 
         StaticBinomialTreeMap {
             stack,

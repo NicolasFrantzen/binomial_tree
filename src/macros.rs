@@ -1,30 +1,29 @@
 #[doc(hidden)]
 #[macro_export]
 macro_rules! binomial_tree_map {
-    ($N:literal) => {
+    ($N:expr) => {
         {
-            $crate::binomial_tree_map::r#static::StaticBinomialTreeMap::new::<{ $N+1 }>()
+            $crate::binomial_tree_map::r#static::StaticBinomialTreeMap::with_capacity($N)
         }
     };
 }
 #[doc(hidden)]
 #[macro_export]
 macro_rules! eval_binomial_tree {
-    ($N:literal, $option:ty, $option_type:ident, $strike:expr, $spot:expr, $expiry:expr, $volatility:expr, $interest_rate:expr, $dividend_rate:expr) => {
+    ($N:expr, $option:ty, $option_type:ident, $strike:expr, $spot:expr, $expiry:expr, $volatility:expr, $interest_rate:expr, $dividend_rate:expr) => {
         {
-            use $crate::model::BinomialTreeModel;
+            use $crate::model::CoxRossRubenstein;
             use $crate::model::{Spot, Expiry};
             use $crate::instruments::{$option, OptionType, Option_};
             use $crate::binomial_tree_map::r#static::{StaticBinomialTreeMap, MAX_TREE_SIZE};
 
             if $N > MAX_TREE_SIZE {
-                // We need to construct the tree dynamical
-
                 todo!()
+                // TODO: This cannot be implemented before eval has the same return types
             }
             else {
                 let tree_map = $crate::binomial_tree_map!($N);
-                let binom_tree: BinomialTreeModel<StaticBinomialTreeMap> = BinomialTreeModel::new(
+                let binom_tree: CoxRossRubenstein<StaticBinomialTreeMap> = CoxRossRubenstein::new(
                     tree_map,
                     Spot($spot),
                     $N,
@@ -42,14 +41,9 @@ macro_rules! eval_binomial_tree {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! eval_binomial_tree_with_steps {
-    ($N:literal, $($y:tt),+) => {
+    ($N:expr, $($y:tt),+) => {
         {
             $crate::eval_binomial_tree!($N, $($y),+)
-        }
-    };
-    ($($y:tt),+) => {
-        {
-            $crate::eval_binomial_tree_with_steps!(100, $($y),+)
         }
     };
 }
@@ -58,7 +52,7 @@ macro_rules! eval_binomial_tree_with_steps {
 macro_rules! american_value {
     (impl $option_type:ident, $($y:expr),+) => {
         {
-            $crate::eval_binomial_tree_with_steps!(AmericanOption, $option_type, $($y),+).value()
+            $crate::eval_binomial_tree_with_steps!(100, AmericanOption, $option_type, $($y),+).value()
         }
     };
 
@@ -79,7 +73,7 @@ macro_rules! american_value {
 macro_rules! european_value {
     ($option_type:ident, $($y:expr),+) => {
         {
-            $crate::eval_binomial_tree_with_steps!(EuropeanOption, $option_type, $($y),+).value()
+            $crate::eval_binomial_tree_with_steps!(100, EuropeanOption, $option_type, $($y),+).value()
         }
     };
 
@@ -100,7 +94,7 @@ macro_rules! european_value {
 macro_rules! american_greeks {
     (impl $option_type:ident, $($y:expr),+) => {
         {
-            $crate::eval_binomial_tree_with_steps!(AmericanOption, $option_type, $($y),+).greeks()
+            $crate::eval_binomial_tree_with_steps!(100, AmericanOption, $option_type, $($y),+).greeks()
         }
     };
 
@@ -121,7 +115,7 @@ macro_rules! american_greeks {
 macro_rules! european_greeks {
     (impl $option_type:ident, $($y:expr),+) => {
         {
-            $crate::eval_binomial_tree_with_steps!(EuropeanOption, $option_type, $($y),+).greeks()
+            $crate::eval_binomial_tree_with_steps!(100, EuropeanOption, $option_type, $($y),+).greeks()
         }
     };
 

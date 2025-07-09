@@ -2,7 +2,7 @@ use hashbrown::HashMap;
 use std::ops::Deref;
 use itertools::Itertools;
 use crate::binomial_tree_map::capacity::{calculate_capacity, calculate_step_capacity};
-use crate::binomial_tree_map::{BinomTreeValueType, BinomialTreeMapImpl, BinomialTreeMapNumericType, BinomialTreeMapValue, BinomialTreeStackImpl};
+use crate::binomial_tree_map::{BinomialTreeMapImpl, BinomialTreeMapNumericType, BinomialTreeMapValue, BinomialTreeStackImpl};
 use crate::binomial_tree_map::nodes::{NodeName, NodeNameTrait, ALL_UPDOWNS};
 
 #[derive(Default)]
@@ -15,7 +15,6 @@ pub(crate) struct DynamicBinomialTreeMap {
 impl DynamicBinomialTreeMap {
     #[allow(dead_code)]
     pub(crate) fn new(number_of_steps: usize) -> Self {
-        let mut map = HashMap::<NodeName, BinomTreeValueType>::with_capacity(calculate_capacity(number_of_steps));
         let mut stack: Vec<Vec<NodeName>> = Vec::with_capacity(calculate_capacity(number_of_steps));
 
         for i in 0..=number_of_steps {
@@ -25,13 +24,6 @@ impl DynamicBinomialTreeMap {
                 .combinations_with_replacement(i)
                 .map(NodeName::new);
 
-            for node_name in iter.clone() {
-                // NOTE: Unsafe is fine here, since we insert unique combinations
-                unsafe {
-                    let _ = map.insert_unique_unchecked(node_name, BinomialTreeMapValue::new());
-                }
-            }
-
             let mut vec = Vec::with_capacity(calculate_step_capacity(i));
             vec.extend(iter);
 
@@ -39,7 +31,7 @@ impl DynamicBinomialTreeMap {
         }
 
         Self {
-            map,
+            map: Default::default(), // TODO: Decouple these
             stack,
         }
     }
