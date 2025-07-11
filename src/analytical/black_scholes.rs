@@ -1,7 +1,15 @@
 use statrs::distribution::{ContinuousCDF, Normal};
 use crate::instruments::OptionType;
 
-pub(crate) fn black_value(option_type: OptionType, spot: f32, strike: f32, vol:  f32, rate: f32, dividends: f32, expiry: f32) -> f32 {
+pub fn black_value(
+    option_type: OptionType,
+    spot: f32,
+    strike: f32,
+    vol:  f32,
+    rate: f32,
+    dividends: f32,
+    expiry: f32
+) -> f32 {
     let n = Normal::new(0., 1.).unwrap();
 
     let d1 = (((spot/strike).ln() + expiry*(rate - dividends + vol.powi(2)/2.0))/(vol * expiry.sqrt())) as f64;

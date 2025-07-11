@@ -6,10 +6,6 @@ edition = "2024"
 [lib]
 bench = false
 
-[[bench]]
-name = "bench"
-harness = false
-
 [dependencies]
 const_for = "0.1.5"
 criterion = { version = "0.5.1", features = ["html_reports"] }
@@ -23,3 +19,11 @@ statrs = "0.18.0"
 [profile.release-with-debug]
 inherits = "release"
 debug = true
+
+[[bench]]
+name = "static_binomial_tree"
+harness = false
+
+[[bench]]
+name = "black_scholes"
+harness = false
