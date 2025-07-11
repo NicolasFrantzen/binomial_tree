@@ -341,22 +341,4 @@ mod tests {
         assert_eq!(eval_and_calculate_relative_error(127), -0.0003817296);
         assert_eq!(eval_and_calculate_relative_error(1001), 0.00057088915);
     }
-
-    #[test]
-    fn test_high_order() {
-        let order = 1003;
-        let tree_map = crate::binomial_tree_map::dynamic::DynamicBinomialTreeMap::new(order);
-        let binom_tree: CoxRossRubenstein<crate::binomial_tree_map::dynamic::DynamicBinomialTreeMap> = CoxRossRubenstein::new(
-            tree_map,
-            Spot(100.0),
-            order,
-            Expiry(0.5),
-            0.3,
-            0.05,
-            0.0);
-
-        let value = binom_tree.eval(AmericanOption::new(OptionType::Call, 95.0, 0.5)).value();
-        println!("{:?}", value);
-
-    }
 }

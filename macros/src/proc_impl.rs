@@ -78,7 +78,7 @@ mod tests {
     fn test_proc() {
         println!("{:?}", binomial_stack(quote! { 3 }));
 
-        //let expected = quote!{ [[NodeName2 { name: [], direction: None }], [NodeName2 { name: [Up], direction: None }, NodeName2 { name: [Down], direction: None }], [NodeName2 { name: [Up, Up], direction: None }, NodeName2 { name: [Up, Down], direction: None }, NodeName2 { name: [Down, Down], direction: None }], [NodeName2 { name: [Up, Up, Up], direction: None }, NodeName2 { name: [Up, Up, Down], direction: None }, NodeName2 { name: [Up, Down, Down], direction: None }, NodeName2 { name: [Down, Down, Down], direction: None }]] };
-        //assert_eq!(binomial_stack(quote! { 3 }), expected);
+        let expected = quote!{ & [& [NodeName2 { name : & [] , direction : None } ,] , & [NodeName2 { name : & [UpDown :: Up ,] , direction : None } , NodeName2 { name : & [UpDown :: Down ,] , direction : None } ,] , & [NodeName2 { name : & [UpDown :: Up , UpDown :: Up ,] , direction : None } , NodeName2 { name : & [UpDown :: Up , UpDown :: Down ,] , direction : None } , NodeName2 { name : & [UpDown :: Down , UpDown :: Down ,] , direction : None } ,] , & [NodeName2 { name : & [UpDown :: Up , UpDown :: Up , UpDown :: Up ,] , direction : None } , NodeName2 { name : & [UpDown :: Up , UpDown :: Up , UpDown :: Down ,] , direction : None } , NodeName2 { name : & [UpDown :: Up , UpDown :: Down , UpDown :: Down ,] , direction : None } , NodeName2 { name : & [UpDown :: Down , UpDown :: Down , UpDown :: Down ,] , direction : None } ,] ,] };
+        assert_eq!(binomial_stack(quote! { 3 }).to_string(), expected.to_string());
     }
 }
