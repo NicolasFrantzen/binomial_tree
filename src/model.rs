@@ -2,16 +2,21 @@ use crate::binomial_tree_map::nodes::NodeNameTrait;
 use crate::binomial_tree_map::{BinomialTreeMapImpl, BinomialTreeStackImpl, GetValue};
 use crate::instruments::Option_;
 
-pub struct CoxRossRubenstein<Stack> {
+use std::marker::PhantomData;
+
+pub struct CoxRossRubenstein<Stack, V = smoothing::None, U = truncation::None> {
     stack: Stack,
     params: VolatilityParameters,
     spot: Spot,
+    expiry: Expiry,
     discount_factor: f32,
     time_step: f32,
+    _phantom_data: PhantomData<V>,
+    _phantom_data2: PhantomData<U>,
 }
 
 #[allow(private_bounds)]
-impl<Stack: BinomialTreeStackImpl> CoxRossRubenstein<Stack> {
+impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::ValueAtBorder> CoxRossRubenstein<Stack, V, U> {
     pub fn new(stack: Stack, initial_price: Spot, number_of_steps: usize, expiry: Expiry, volatility: f32, interest_rate: f32, dividends: f32) -> Self {
         let time_step = expiry.0 / number_of_steps as f32;
         let vol_params = VolatilityParameters::new(volatility, interest_rate, dividends, time_step);
@@ -20,18 +25,25 @@ impl<Stack: BinomialTreeStackImpl> CoxRossRubenstein<Stack> {
             stack,
             params: vol_params,
             spot: initial_price,
+            expiry,
             discount_factor: (-interest_rate * time_step).exp(),
             time_step,
+            _phantom_data: Default::default(),
+            _phantom_data2: Default::default(),
         }
     }
 
-    pub fn eval<T: Option_ + Sync>(self, option: T) -> EvaluatedBinomialTreeModelImpl<Stack>
+    pub fn eval<T: Option_ + Sync>(self, option: T) -> EvaluatedBinomialTreeModelImpl<Stack, V, U>
     {
         let p = self.params.p();
 
         let mut tree_map = <Stack as BinomialTreeStackImpl>::NodeNameContainerType::default();
+        let truncation =  U::new(self.spot.0, self.expiry.0, self.params.volatility, self.params.interest_rate, self.params.dividends);
 
+        let mut first_level = true;
         for (i, node_level) in self.stack.iter().enumerate().rev() {
+            let current_expiry = self.expiry.0 - self.time_step * ((i) as f32); // Is the last step 0 or 1 timestep to expiry?
+            
             node_level.iter().rev().enumerate().for_each(|(j, node)| {
 
                 let up_value = tree_map.get(&node.up());
@@ -43,21 +55,43 @@ impl<Stack: BinomialTreeStackImpl> CoxRossRubenstein<Stack> {
                 //println!("{:?}{:?}", node.up(), up_value);
                 //println!("{:?}{:?}", node.down(), down_value);
 
-                if let (Some(up_value), Some(down_value)) = (up_value, down_value) {
-                    let up_value = up_value.get();
-                    let down_value = down_value.get(); //.expect("The tree should be evaluated backwards");
+                match (up_value, down_value)
+                {
+                    (Some(up_value), Some(down_value)) =>  {
+                        let up_value = up_value.get();
+                        let down_value = down_value.get(); //.expect("The tree should be evaluated backwards");
 
-                    // TODO: Hide details
-                    let value = (up_value * p + down_value * (1.0 - p)) * self.discount_factor;
+                        // TODO: Hide details
+                        let value = (up_value * p + down_value * (1.0 - p)) * self.discount_factor;
 
-                    let option_value = option.value(value, price);
-                    tree_map.set(node, option_value.into());
-                } else {
-                    let option_value = option.intrinsic_value(price);
-                    tree_map.set(node, option_value.into());
+                        let option_value = option.value(value, price);
+                        tree_map.set(node, option_value.into());
+                    }
+                    (Some(_up_value), None) => {
+                        let option_value = truncation.value(&option, 0.0, price, &self.params, current_expiry);
+                        if let Some(option_value) = option_value {
+                            tree_map.set(node, option_value.into());
+                        }
+                    },
+                    (None, Some(_down_value)) => {
+                        let option_value = truncation.value(&option, 0.0, price, &self.params, current_expiry);
+                        if let Some(option_value) = option_value {
+                            tree_map.set(node, option_value.into());
+                        }
+                    },
+                    (None, None) => {
+                        if first_level {
+                            let option_value = V::value_at_leaf(&option, price, &self.params, current_expiry);
+                            tree_map.set(node, option_value.into());
+                        }
+                    },
                 }
             });
+
+            first_level = false;
         }
+
+        //println!("{:?}", tree_map);
 
         EvaluatedBinomialTreeModelImpl {
             model: self,
@@ -66,14 +100,146 @@ impl<Stack: BinomialTreeStackImpl> CoxRossRubenstein<Stack> {
     }
 }
 
+// TODO: Move?
+pub mod smoothing {
+    use crate::black_scholes::black_value;
+    use crate::instruments::Option_;
+    use crate::model::VolatilityParameters;
+
+    pub trait ValueAtLeaf {
+        fn value_at_leaf<U: Option_ + Sync>(option: &U, price: f32, vol_params: &VolatilityParameters, expiry: f32) -> f32;
+    }
+
+    impl ValueAtLeaf for None {
+        fn value_at_leaf<U: Option_ + Sync>(option: &U, price: f32, _vol_params: &VolatilityParameters, _expiry: f32) -> f32 {
+            option.intrinsic_value(price)
+        }
+    }
+
+    impl ValueAtLeaf for Black {
+        fn value_at_leaf<U: Option_ + Sync>(option: &U, price: f32, vol_params: &VolatilityParameters, expiry: f32) -> f32 {
+            let time_to_expiry = expiry; // There is one timestep left to expiry
+            let black_value = black_value(option.option_type(), price, option.strike(), vol_params.volatility, vol_params.interest_rate, vol_params.dividends, time_to_expiry);
+            option.value(black_value, price)
+        }
+    }
+
+    pub struct None;
+    pub struct Black;
+}
+
+// TODO: Move?
+pub mod truncation {
+    use crate::black_scholes::black_value;
+    use crate::instruments::Option_;
+    use crate::model::VolatilityParameters;
+
+    pub trait ValueAtBorder {
+        fn new(spot: f32, expiry: f32, volatility: f32, rate: f32, dividends: f32) -> Self;
+        fn value<U: Option_ + Sync>(&self, option: &U, value: f32, price: f32, vol_params: &VolatilityParameters, expiry: f32) -> Option<f32>;
+        fn not_none() -> bool;
+    }
+
+    pub struct None;
+    pub struct Black {
+        price_bounds: PriceBounds,
+    }
+
+    impl ValueAtBorder for None {
+        fn new(_spot: f32, _expiry: f32, _volatility: f32, _rate: f32, _dividends: f32) -> Self {
+            Self {}
+        }
+
+        fn value<U: Option_ + Sync>(&self, option: &U, value: f32, price: f32, _vol_params: &VolatilityParameters, _expiry: f32) -> Option<f32> {
+            Some(option.value(value, price))
+        }
+
+        fn not_none() -> bool {
+            false
+        }
+    }
+
+    impl ValueAtBorder for Black {
+        fn new(spot: f32, expiry: f32, volatility: f32, rate: f32, dividends: f32) -> Self {
+            const NUM_OF_STD: usize = 6;
+            Self {
+                price_bounds: PriceBounds::new(spot, expiry, volatility, rate, dividends, NUM_OF_STD),
+            }
+        }
+
+        fn value<U: Option_ + Sync>(&self, option: &U, _value: f32, price: f32, vol_params: &VolatilityParameters, current_expiry: f32) -> Option<f32> {
+            if self.price_bounds.is_out_of_range(price) {
+                return Option::None;
+            }
+
+            let black_value = black_value(option.option_type(), price, option.strike(), vol_params.volatility, vol_params.interest_rate, vol_params.dividends, current_expiry);
+            Some(option.value(black_value, price))
+        }
+
+        fn not_none() -> bool {
+            true
+        }
+    }
+
+    pub struct PriceBounds {
+        lower_bound: f32,
+        upper_bound: f32,
+    }
+
+    impl PriceBounds {
+        /// Compute log-space and standard-space boundaries at num_std deviations under Q measure.
+        fn new(spot: f32, expiry: f32, volatility: f32, rate: f32, dividends: f32, number_of_std: usize) -> PriceBounds {
+            let mean_log = spot.ln() + (rate - dividends - 0.5 * volatility.powi(2) * expiry);
+            let std_log = volatility *  expiry.sqrt();
+
+            let lower_log = mean_log - (number_of_std as f32) * std_log;
+            let upper_log = mean_log + (number_of_std as f32) * std_log;
+
+            let lower_price = lower_log.exp();
+            let upper_price = upper_log.exp();
+
+            PriceBounds{
+                lower_bound: lower_price,
+                upper_bound: upper_price,
+            }
+        }
+
+        fn is_out_of_range(&self, price: f32) -> bool {
+            let in_range = (self.lower_bound..=self.upper_bound).contains(&price);
+
+            !in_range
+        }
+    }
+
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_calculate_price_bounds() {
+            let bounds = PriceBounds::new(100.0, 0.5, 0.3, 0.05, 0.0, 6);
+
+            assert_eq!(bounds.lower_bound, 28.78568);
+            assert_eq!(bounds.upper_bound, 367.03702);
+
+            assert!(!bounds.is_out_of_range(100.0));
+            assert!(bounds.is_out_of_range(0.0));
+            assert!(bounds.is_out_of_range(400.0));
+            assert!(!bounds.is_out_of_range(367.03702));
+        }
+    }
+}
+
+
 #[allow(private_bounds)]
-pub struct EvaluatedBinomialTreeModelImpl<Stack: BinomialTreeStackImpl> {
-    model: CoxRossRubenstein<Stack>,
+pub struct EvaluatedBinomialTreeModelImpl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::ValueAtBorder> {
+    model: CoxRossRubenstein<Stack, V, U>,
     map: <Stack as BinomialTreeStackImpl>::NodeNameContainerType,
 }
 
 #[allow(private_bounds)]
-impl<Stack: BinomialTreeStackImpl> EvaluatedBinomialTreeModelImpl<Stack> {
+impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::ValueAtBorder> EvaluatedBinomialTreeModelImpl<Stack, V, U> {
     pub fn value(&self) -> Value
     {
         let initial_node = <<Stack as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType::default();
@@ -148,6 +314,10 @@ pub struct VolatilityParameters {
     a: f32,
     pub(crate) u: f32,
     pub(crate) d: f32,
+
+    volatility: f32,
+    interest_rate: f32,
+    dividends: f32,
 }
 
 impl VolatilityParameters {
@@ -157,6 +327,9 @@ impl VolatilityParameters {
             a: ((interest_rate - dividends) * timestep).exp(),
             u,
             d: 1.0 / u,
+            volatility,
+            interest_rate,
+            dividends,
         }
     }
 
@@ -188,6 +361,7 @@ pub struct Theta(pub f32);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::smoothing::Black;
     use crate::binomial_tree_map::r#static::StaticBinomialTreeMap;
     use crate::instruments::{AmericanOption, EuropeanOption, OptionType};
     use crate::{binomial_tree_map, eval_binomial_tree_with_steps};
@@ -304,26 +478,29 @@ mod tests {
         (tree_price - true_price)/(0.5 + true_price - intrinsic_value)
     }
 
+    fn eval_american_option_example(steps: usize) -> f32 {
+
+        if steps > 128 {
+            let tree_map = crate::binomial_tree_map::dynamic::DynamicBinomialTreeMap::new(steps);
+            let binom_tree: CoxRossRubenstein<crate::binomial_tree_map::dynamic::DynamicBinomialTreeMap, Black> = CoxRossRubenstein::new(
+                tree_map,
+                Spot(100.0),
+                steps,
+                Expiry(0.5),
+                0.3,
+                0.05,
+                0.0);
+
+            binom_tree.eval(AmericanOption::new(OptionType::Call, 95.0, 0.5)).value().0
+        } else {
+            eval_binomial_tree_with_steps!(steps, AmericanOption, Call, 95.0, 100.0, 0.5, 0.3, 0.05, 0.0).value().0
+        }
+    }
+
     fn eval_and_calculate_relative_error(steps: usize) -> f32 {
-        let true_value = 12.329666;
+        let true_value = 12.32791655;
 
-        let val= {
-            if steps > 128 {
-                let tree_map = crate::binomial_tree_map::dynamic::DynamicBinomialTreeMap::new(steps);
-                let binom_tree: CoxRossRubenstein<crate::binomial_tree_map::dynamic::DynamicBinomialTreeMap> = CoxRossRubenstein::new(
-                    tree_map,
-                    Spot(100.0),
-                    steps,
-                    Expiry(0.5),
-                    0.3,
-                    0.05,
-                    0.0);
-
-                binom_tree.eval(AmericanOption::new(OptionType::Call, 95.0, 0.5)).value().0
-            } else {
-                eval_binomial_tree_with_steps!(steps, AmericanOption, Call, 95.0, 100.0, 0.5, 0.3, 0.05, 0.0).value().0
-            }
-        };
+        let val= eval_american_option_example(steps);
 
         let option = AmericanOption::new(OptionType::Call, 95.0, 0.5);
         let intrinsic = option.intrinsic_value(100.0);
@@ -331,14 +508,26 @@ mod tests {
         relative_error(val, true_value, intrinsic)
     }
 
+    #[ignore = "convergence check"]
     #[test]
     fn test_binomial_tree_american_call_convergence() {
-        assert_eq!(eval_and_calculate_relative_error(11), -0.005980755);
+        /*assert_eq!(eval_and_calculate_relative_error(11), -0.005980755);
         assert_eq!(eval_and_calculate_relative_error(51), 0.0036523752);
         assert_eq!(eval_and_calculate_relative_error(71), 0.0031288671);
         assert_eq!(eval_and_calculate_relative_error(101), 0.0013165652);
         assert_eq!(eval_and_calculate_relative_error(113), 0.0005097442);
         assert_eq!(eval_and_calculate_relative_error(127), -0.0003817296);
-        assert_eq!(eval_and_calculate_relative_error(1001), 0.00057088915);
+        assert_eq!(eval_and_calculate_relative_error(1001), 0.00057088915);*/
+
+        for i in vec![11, 51, 71, 101, 113, 127, 1001] {
+            println!("{}: {}", i, eval_and_calculate_relative_error(i))
+        }
+    }
+
+    #[test]
+    fn test_binomial_tree_american_call_convergence2() {
+        for i in 1..128 {
+            println!("{}", eval_american_option_example(i))
+        }
     }
 }

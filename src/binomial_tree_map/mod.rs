@@ -25,8 +25,8 @@ pub(crate) trait BinomialTreeMapImpl {
 }
 
 pub(crate) trait BinomialTreeStackImpl {
-    type NodeNameContainerType: BinomialTreeMapImpl + Default;
-
+    type NodeNameContainerType: BinomialTreeMapImpl + Default + Debug;
+    
     fn iter(&self) -> impl DoubleEndedIterator + ExactSizeIterator<Item=&impl Deref<Target=[<<Self as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType]>>;
 }
 

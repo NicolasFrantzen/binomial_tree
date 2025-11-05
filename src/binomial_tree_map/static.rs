@@ -28,6 +28,7 @@ impl StaticBinomialTreeMap {
     }
 }
 
+#[derive(Debug)]
 pub struct StaticContainer {
     arena: Arena<BinomTreeValueType>,
     pub(crate) map: HashMap<NodeName2, Id<BinomTreeValueType>>,
@@ -70,7 +71,14 @@ impl BinomialTreeStackImpl for StaticBinomialTreeMap {
     //type NodeNameType = NodeName2;
     type NodeNameContainerType = StaticContainer;
 
-    fn iter(&self) -> impl DoubleEndedIterator + ExactSizeIterator<Item=&impl Deref<Target=[<<Self as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType]>> {
+
+
+    fn iter(&self) -> impl DoubleEndedIterator +
+        ExactSizeIterator<
+            Item=&impl Deref<
+                Target=[<<Self as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType]
+            >
+        > {
         self.stack.iter()
     }
 }

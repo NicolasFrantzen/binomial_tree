@@ -5,7 +5,7 @@ use crate::binomial_tree_map::capacity::{calculate_capacity, calculate_step_capa
 use crate::binomial_tree_map::{BinomialTreeMapImpl, BinomialTreeMapNumericType, BinomialTreeMapValue, BinomialTreeStackImpl};
 use crate::binomial_tree_map::nodes::{NodeName, NodeNameTrait, ALL_UPDOWNS};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(crate) struct DynamicBinomialTreeMap {
     // Map consists of sorted keys only (with U < D). For example: UUUDD. Values are OnceLock, so they can be replaced without mutable borrowing
     map: HashMap<NodeName, BinomialTreeMapValue<BinomialTreeMapNumericType>>,
@@ -58,7 +58,12 @@ impl BinomialTreeMapImpl for DynamicBinomialTreeMap {
 impl BinomialTreeStackImpl for DynamicBinomialTreeMap {
     type NodeNameContainerType = DynamicBinomialTreeMap;
 
-    fn iter(&self) -> impl DoubleEndedIterator + ExactSizeIterator<Item=&impl Deref<Target=[<<Self as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType]>> {
+    fn iter(&self) -> impl DoubleEndedIterator +
+        ExactSizeIterator<
+            Item=&impl Deref<
+                Target=[<<Self as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType]
+            >
+        > {
         self.stack.iter()
     }
 }

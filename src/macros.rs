@@ -12,18 +12,28 @@ macro_rules! binomial_tree_map {
 macro_rules! eval_binomial_tree {
     ($N:expr, $option:ty, $option_type:ident, $strike:expr, $spot:expr, $expiry:expr, $volatility:expr, $interest_rate:expr, $dividend_rate:expr) => {
         {
-            use $crate::model::CoxRossRubenstein;
+            use $crate::model::{CoxRossRubenstein, smoothing, truncation};
             use $crate::model::{Spot, Expiry};
             use $crate::instruments::{$option, OptionType, Option_};
             use $crate::binomial_tree_map::r#static::{StaticBinomialTreeMap, MAX_TREE_SIZE};
 
             if $N > MAX_TREE_SIZE {
                 todo!()
-                // TODO: This cannot be implemented before eval has the same return types
+                /*let tree_map = crate::binomial_tree_map::dynamic::DynamicBinomialTreeMap::new($N);
+                let binom_tree: CoxRossRubenstein<crate::binomial_tree_map::dynamic::DynamicBinomialTreeMap, Smoothing> = CoxRossRubenstein::new(
+                    tree_map,
+                    Spot($spot),
+                    $N,
+                    Expiry($expiry),
+                    $volatility,
+                    $interest_rate,
+                    $dividend_rate);
+
+                binom_tree.eval(<$option>::new(OptionType::$option_type, $strike, $expiry))*/
             }
             else {
                 let tree_map = $crate::binomial_tree_map!($N);
-                let binom_tree: CoxRossRubenstein<StaticBinomialTreeMap> = CoxRossRubenstein::new(
+                let binom_tree: CoxRossRubenstein<StaticBinomialTreeMap, smoothing::Black, truncation::Black> = CoxRossRubenstein::new(
                     tree_map,
                     Spot($spot),
                     $N,
