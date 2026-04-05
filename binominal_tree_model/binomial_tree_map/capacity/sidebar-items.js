@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["binom","calculate_capacity","calculate_step_capacity"]};

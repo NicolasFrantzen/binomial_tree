@@ -1,0 +1,9 @@
+(function() {
+    const implementors = Object.fromEntries([["binominal_tree_model",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.94.1/core/fmt/trait.Display.html\" title=\"trait core::fmt::Display\">Display</a> for <a class=\"enum\" href=\"binominal_tree_model/binomial_tree_map/nodes/enum.UpDown.html\" title=\"enum binominal_tree_model::binomial_tree_map::nodes::UpDown\">UpDown</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.94.1/core/fmt/trait.Display.html\" title=\"trait core::fmt::Display\">Display</a> for <a class=\"struct\" href=\"binominal_tree_model/binomial_tree_map/nodes/struct.NodeName.html\" title=\"struct binominal_tree_model::binomial_tree_map::nodes::NodeName\">NodeName</a>",0],["impl&lt;Stack: <a class=\"trait\" href=\"binominal_tree_model/binomial_tree_map/trait.BinomialTreeStackImpl.html\" title=\"trait binominal_tree_model::binomial_tree_map::BinomialTreeStackImpl\">BinomialTreeStackImpl</a>, V: <a class=\"trait\" href=\"binominal_tree_model/model/smoothing/trait.ValueAtLeaf.html\" title=\"trait binominal_tree_model::model::smoothing::ValueAtLeaf\">ValueAtLeaf</a>, U: <a class=\"trait\" href=\"binominal_tree_model/model/truncation/trait.ValueAtBorder.html\" title=\"trait binominal_tree_model::model::truncation::ValueAtBorder\">ValueAtBorder</a>&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.94.1/core/fmt/trait.Display.html\" title=\"trait core::fmt::Display\">Display</a> for <a class=\"struct\" href=\"binominal_tree_model/model/struct.EvaluatedBinomialTreeModelImpl.html\" title=\"struct binominal_tree_model::model::EvaluatedBinomialTreeModelImpl\">EvaluatedBinomialTreeModelImpl</a>&lt;Stack, V, U&gt;",0]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":59,"fragment_lengths":[1640]}

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["black_scholes","normal_distribution"]};
