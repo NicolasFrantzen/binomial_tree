@@ -1,6 +1,6 @@
 use crate::binomial_tree_map::nodes::NodeNameTrait;
 use crate::binomial_tree_map::{BinomialTreeMapImpl, BinomialTreeStackImpl, GetValue};
-use crate::instruments::Option_;
+use crate::instruments::OptionContract;
 
 use std::fmt;
 use std::marker::PhantomData;
@@ -44,7 +44,7 @@ impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::Val
         }
     }
 
-    pub fn eval<T: Option_ + Sync>(self, option: T) -> EvaluatedBinomialTreeModelImpl<Stack, V, U> {
+    pub fn eval<T: OptionContract + Sync>(self, option: T) -> EvaluatedBinomialTreeModelImpl<Stack, V, U> {
         let p = self.params.p();
 
         let mut tree_map = <Stack as BinomialTreeStackImpl>::NodeNameContainerType::default();
@@ -121,11 +121,11 @@ impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::Val
 // TODO: Move?
 pub mod smoothing {
     use crate::black_scholes::black_value;
-    use crate::instruments::Option_;
+    use crate::instruments::OptionContract;
     use crate::model::VolatilityParameters;
 
     pub trait ValueAtLeaf {
-        fn value_at_leaf<U: Option_ + Sync>(
+        fn value_at_leaf<U: OptionContract + Sync>(
             option: &U,
             price: f32,
             vol_params: &VolatilityParameters,
@@ -134,7 +134,7 @@ pub mod smoothing {
     }
 
     impl ValueAtLeaf for None {
-        fn value_at_leaf<U: Option_ + Sync>(
+        fn value_at_leaf<U: OptionContract + Sync>(
             option: &U,
             price: f32,
             _vol_params: &VolatilityParameters,
@@ -145,7 +145,7 @@ pub mod smoothing {
     }
 
     impl ValueAtLeaf for Black {
-        fn value_at_leaf<U: Option_ + Sync>(
+        fn value_at_leaf<U: OptionContract + Sync>(
             option: &U,
             price: f32,
             vol_params: &VolatilityParameters,
@@ -172,12 +172,12 @@ pub mod smoothing {
 // TODO: Move?
 pub mod truncation {
     use crate::black_scholes::black_value;
-    use crate::instruments::Option_;
+    use crate::instruments::OptionContract;
     use crate::model::VolatilityParameters;
 
     pub trait ValueAtBorder {
         fn new(spot: f32, expiry: f32, volatility: f32, rate: f32, dividends: f32) -> Self;
-        fn value<U: Option_ + Sync>(
+        fn value<U: OptionContract + Sync>(
             &self,
             option: &U,
             value: f32,
@@ -198,7 +198,7 @@ pub mod truncation {
             Self {}
         }
 
-        fn value<U: Option_ + Sync>(
+        fn value<U: OptionContract + Sync>(
             &self,
             option: &U,
             value: f32,
@@ -224,7 +224,7 @@ pub mod truncation {
             }
         }
 
-        fn value<U: Option_ + Sync>(
+        fn value<U: OptionContract + Sync>(
             &self,
             option: &U,
             _value: f32,

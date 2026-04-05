@@ -1,4 +1,4 @@
-pub trait Option_ {
+pub trait OptionContract {
     fn new(option_type: OptionType, strike: f32, expiry: f32) -> Self;
     fn expiry(&self) -> f32;
     fn strike(&self) -> f32;
@@ -25,7 +25,7 @@ pub struct AmericanOption {
     expiry: f32,
 }
 
-impl Option_ for AmericanOption {
+impl OptionContract for AmericanOption {
     fn new(option_type: OptionType, strike: f32, expiry: f32) -> Self {
         Self{ option_type, strike, expiry }
     }
@@ -50,7 +50,7 @@ pub struct EuropeanOption {
     expiry: f32,
 }
 
-impl Option_ for EuropeanOption {
+impl OptionContract for EuropeanOption {
     fn new(option_type: OptionType, strike: f32, expiry: f32) -> Self {
         Self { option_type, strike, expiry }
     }

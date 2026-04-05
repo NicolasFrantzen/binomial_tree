@@ -36,7 +36,7 @@ macro_rules! binomial_tree_map {
 macro_rules! eval_binomial_tree {
     ($N:expr, $option:ty, $option_type:ident, $strike:expr, $spot:expr, $expiry:expr, $volatility:expr, $interest_rate:expr, $dividend_rate:expr) => {{
         use $crate::binomial_tree_map::r#static::{StaticBinomialTreeMap, MAX_TREE_SIZE};
-        use $crate::instruments::{$option, OptionType, Option_};
+        use $crate::instruments::{$option, OptionType, OptionContract};
         use $crate::model::{erase_type, smoothing, truncation, CoxRossRubenstein};
         use $crate::model::{Expiry, Spot};
 
