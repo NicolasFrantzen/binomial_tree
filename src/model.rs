@@ -2,6 +2,7 @@ use crate::binomial_tree_map::nodes::NodeNameTrait;
 use crate::binomial_tree_map::{BinomialTreeMapImpl, BinomialTreeStackImpl, GetValue};
 use crate::instruments::Option_;
 
+use std::fmt;
 use std::marker::PhantomData;
 
 pub struct CoxRossRubenstein<Stack, V = smoothing::None, U = truncation::None> {
@@ -16,8 +17,18 @@ pub struct CoxRossRubenstein<Stack, V = smoothing::None, U = truncation::None> {
 }
 
 #[allow(private_bounds)]
-impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::ValueAtBorder> CoxRossRubenstein<Stack, V, U> {
-    pub fn new(stack: Stack, initial_price: Spot, number_of_steps: usize, expiry: Expiry, volatility: f32, interest_rate: f32, dividends: f32) -> Self {
+impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::ValueAtBorder>
+    CoxRossRubenstein<Stack, V, U>
+{
+    pub fn new(
+        stack: Stack,
+        initial_price: Spot,
+        number_of_steps: usize,
+        expiry: Expiry,
+        volatility: f32,
+        interest_rate: f32,
+        dividends: f32,
+    ) -> Self {
         let time_step = expiry.0 / number_of_steps as f32;
         let vol_params = VolatilityParameters::new(volatility, interest_rate, dividends, time_step);
 
@@ -33,31 +44,35 @@ impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::Val
         }
     }
 
-    pub fn eval<T: Option_ + Sync>(self, option: T) -> EvaluatedBinomialTreeModelImpl<Stack, V, U>
-    {
+    pub fn eval<T: Option_ + Sync>(self, option: T) -> EvaluatedBinomialTreeModelImpl<Stack, V, U> {
         let p = self.params.p();
 
         let mut tree_map = <Stack as BinomialTreeStackImpl>::NodeNameContainerType::default();
-        let truncation =  U::new(self.spot.0, self.expiry.0, self.params.volatility, self.params.interest_rate, self.params.dividends);
+        let truncation = U::new(
+            self.spot.0,
+            self.expiry.0,
+            self.params.volatility,
+            self.params.interest_rate,
+            self.params.dividends,
+        );
 
         let mut first_level = true;
         for (i, node_level) in self.stack.iter().enumerate().rev() {
-            let current_expiry = self.expiry.0 - self.time_step * ((i) as f32); // Is the last step 0 or 1 timestep to expiry?
-            
-            node_level.iter().rev().enumerate().for_each(|(j, node)| {
+            let current_expiry = self.expiry.0 - self.time_step * (i as f32); // Is the last step 0 or 1 timestep to expiry?
 
+            node_level.iter().rev().enumerate().for_each(|(j, node)| {
                 let up_value = tree_map.get(&node.up());
                 let down_value = tree_map.get(&node.down());
 
                 // TODO: Hide details
-                let price = self.spot.0 * self.params.u.powi(j as i32) * self.params.d.powi((i-j) as i32);
+                let price =
+                    self.spot.0 * self.params.u.powi(j as i32) * self.params.d.powi((i - j) as i32);
 
                 //println!("{:?}{:?}", node.up(), up_value);
                 //println!("{:?}{:?}", node.down(), down_value);
 
-                match (up_value, down_value)
-                {
-                    (Some(up_value), Some(down_value)) =>  {
+                match (up_value, down_value) {
+                    (Some(up_value), Some(down_value)) => {
                         let up_value = up_value.get();
                         let down_value = down_value.get(); //.expect("The tree should be evaluated backwards");
 
@@ -68,23 +83,26 @@ impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::Val
                         tree_map.set(node, option_value.into());
                     }
                     (Some(_up_value), None) => {
-                        let option_value = truncation.value(&option, 0.0, price, &self.params, current_expiry);
+                        let option_value =
+                            truncation.value(&option, 0.0, price, &self.params, current_expiry);
                         if let Some(option_value) = option_value {
                             tree_map.set(node, option_value.into());
                         }
-                    },
+                    }
                     (None, Some(_down_value)) => {
-                        let option_value = truncation.value(&option, 0.0, price, &self.params, current_expiry);
+                        let option_value =
+                            truncation.value(&option, 0.0, price, &self.params, current_expiry);
                         if let Some(option_value) = option_value {
                             tree_map.set(node, option_value.into());
                         }
-                    },
+                    }
                     (None, None) => {
                         if first_level {
-                            let option_value = V::value_at_leaf(&option, price, &self.params, current_expiry);
+                            let option_value =
+                                V::value_at_leaf(&option, price, &self.params, current_expiry);
                             tree_map.set(node, option_value.into());
                         }
-                    },
+                    }
                 }
             });
 
@@ -107,19 +125,42 @@ pub mod smoothing {
     use crate::model::VolatilityParameters;
 
     pub trait ValueAtLeaf {
-        fn value_at_leaf<U: Option_ + Sync>(option: &U, price: f32, vol_params: &VolatilityParameters, expiry: f32) -> f32;
+        fn value_at_leaf<U: Option_ + Sync>(
+            option: &U,
+            price: f32,
+            vol_params: &VolatilityParameters,
+            expiry: f32,
+        ) -> f32;
     }
 
     impl ValueAtLeaf for None {
-        fn value_at_leaf<U: Option_ + Sync>(option: &U, price: f32, _vol_params: &VolatilityParameters, _expiry: f32) -> f32 {
+        fn value_at_leaf<U: Option_ + Sync>(
+            option: &U,
+            price: f32,
+            _vol_params: &VolatilityParameters,
+            _expiry: f32,
+        ) -> f32 {
             option.intrinsic_value(price)
         }
     }
 
     impl ValueAtLeaf for Black {
-        fn value_at_leaf<U: Option_ + Sync>(option: &U, price: f32, vol_params: &VolatilityParameters, expiry: f32) -> f32 {
+        fn value_at_leaf<U: Option_ + Sync>(
+            option: &U,
+            price: f32,
+            vol_params: &VolatilityParameters,
+            expiry: f32,
+        ) -> f32 {
             let time_to_expiry = expiry; // There is one timestep left to expiry
-            let black_value = black_value(option.option_type(), price, option.strike(), vol_params.volatility, vol_params.interest_rate, vol_params.dividends, time_to_expiry);
+            let black_value = black_value(
+                option.option_type(),
+                price,
+                option.strike(),
+                vol_params.volatility,
+                vol_params.interest_rate,
+                vol_params.dividends,
+                time_to_expiry,
+            );
             option.value(black_value, price)
         }
     }
@@ -136,7 +177,14 @@ pub mod truncation {
 
     pub trait ValueAtBorder {
         fn new(spot: f32, expiry: f32, volatility: f32, rate: f32, dividends: f32) -> Self;
-        fn value<U: Option_ + Sync>(&self, option: &U, value: f32, price: f32, vol_params: &VolatilityParameters, expiry: f32) -> Option<f32>;
+        fn value<U: Option_ + Sync>(
+            &self,
+            option: &U,
+            value: f32,
+            price: f32,
+            vol_params: &VolatilityParameters,
+            expiry: f32,
+        ) -> Option<f32>;
         fn not_none() -> bool;
     }
 
@@ -150,7 +198,14 @@ pub mod truncation {
             Self {}
         }
 
-        fn value<U: Option_ + Sync>(&self, option: &U, value: f32, price: f32, _vol_params: &VolatilityParameters, _expiry: f32) -> Option<f32> {
+        fn value<U: Option_ + Sync>(
+            &self,
+            option: &U,
+            value: f32,
+            price: f32,
+            _vol_params: &VolatilityParameters,
+            _expiry: f32,
+        ) -> Option<f32> {
             Some(option.value(value, price))
         }
 
@@ -163,16 +218,33 @@ pub mod truncation {
         fn new(spot: f32, expiry: f32, volatility: f32, rate: f32, dividends: f32) -> Self {
             const NUM_OF_STD: usize = 6;
             Self {
-                price_bounds: PriceBounds::new(spot, expiry, volatility, rate, dividends, NUM_OF_STD),
+                price_bounds: PriceBounds::new(
+                    spot, expiry, volatility, rate, dividends, NUM_OF_STD,
+                ),
             }
         }
 
-        fn value<U: Option_ + Sync>(&self, option: &U, _value: f32, price: f32, vol_params: &VolatilityParameters, current_expiry: f32) -> Option<f32> {
+        fn value<U: Option_ + Sync>(
+            &self,
+            option: &U,
+            _value: f32,
+            price: f32,
+            vol_params: &VolatilityParameters,
+            current_expiry: f32,
+        ) -> Option<f32> {
             if self.price_bounds.is_out_of_range(price) {
                 return Option::None;
             }
 
-            let black_value = black_value(option.option_type(), price, option.strike(), vol_params.volatility, vol_params.interest_rate, vol_params.dividends, current_expiry);
+            let black_value = black_value(
+                option.option_type(),
+                price,
+                option.strike(),
+                vol_params.volatility,
+                vol_params.interest_rate,
+                vol_params.dividends,
+                current_expiry,
+            );
             Some(option.value(black_value, price))
         }
 
@@ -188,9 +260,16 @@ pub mod truncation {
 
     impl PriceBounds {
         /// Compute log-space and standard-space boundaries at num_std deviations under Q measure.
-        fn new(spot: f32, expiry: f32, volatility: f32, rate: f32, dividends: f32, number_of_std: usize) -> PriceBounds {
+        fn new(
+            spot: f32,
+            expiry: f32,
+            volatility: f32,
+            rate: f32,
+            dividends: f32,
+            number_of_std: usize,
+        ) -> PriceBounds {
             let mean_log = spot.ln() + (rate - dividends - 0.5 * volatility.powi(2) * expiry);
-            let std_log = volatility *  expiry.sqrt();
+            let std_log = volatility * expiry.sqrt();
 
             let lower_log = mean_log - (number_of_std as f32) * std_log;
             let upper_log = mean_log + (number_of_std as f32) * std_log;
@@ -198,7 +277,7 @@ pub mod truncation {
             let lower_price = lower_log.exp();
             let upper_price = upper_log.exp();
 
-            PriceBounds{
+            PriceBounds {
                 lower_bound: lower_price,
                 upper_bound: upper_price,
             }
@@ -210,7 +289,6 @@ pub mod truncation {
             !in_range
         }
     }
-
 
     #[cfg(test)]
     mod tests {
@@ -231,17 +309,213 @@ pub mod truncation {
     }
 }
 
-
 #[allow(private_bounds)]
-pub struct EvaluatedBinomialTreeModelImpl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::ValueAtBorder> {
+pub struct EvaluatedBinomialTreeModelImpl<
+    Stack: BinomialTreeStackImpl,
+    V: smoothing::ValueAtLeaf,
+    U: truncation::ValueAtBorder,
+> {
     model: CoxRossRubenstein<Stack, V, U>,
     map: <Stack as BinomialTreeStackImpl>::NodeNameContainerType,
 }
 
+impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::ValueAtBorder>
+    fmt::Display for EvaluatedBinomialTreeModelImpl<Stack, V, U>
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        const GAP: usize = 8; // minimum spacing between sibling nodes
+
+        let levels = self.model.stack.iter().len();
+        if levels == 0 {
+            return writeln!(f, "<empty tree>");
+        }
+
+        /* ---------- Build node labels ---------- */
+
+        let mut node_data: Vec<Vec<(String, String)>> = Vec::with_capacity(levels);
+        for (i, level) in self.model.stack.iter().enumerate() {
+            let mut row = Vec::with_capacity(level.len());
+            for (j, node) in level.iter().enumerate() {
+                let value = self.map.get(&node).unwrap().get();
+                let price = self.model.spot.0
+                    * self.model.params.u.powi(j as i32)
+                    * self.model.params.d.powi((i - j) as i32);
+
+                let price_str = format!("{:.2}", price);
+                let value_str = format!("{:.4}", value);
+                row.push((price_str, value_str));
+            }
+            node_data.push(row);
+        }
+
+        // Calculate max width needed for labels
+        let max_price_width = node_data
+            .iter()
+            .flat_map(|r| r.iter())
+            .map(|(p, _)| p.len() + 2) // "P: " prefix
+            .max()
+            .unwrap_or(6);
+
+        let max_value_width = node_data
+            .iter()
+            .flat_map(|r| r.iter())
+            .map(|(_, v)| v.len() + 2) // "V: " prefix
+            .max()
+            .unwrap_or(6);
+
+        let node_width = max_price_width.max(max_value_width);
+
+        /* ---------- Canvas sizing ---------- */
+
+        let leaf_count = node_data[levels - 1].len();
+        let spacing = node_width + GAP;
+        let width = (leaf_count * spacing).max(80);
+        // Each level needs 2 rows for data + 1 for connectors (except last level)
+        let rows = levels * 3 - 1;
+
+        let mut canvas = vec![vec![' '; width]; rows];
+
+        /* ---------- Compute positions ---------- */
+
+        let mut positions: Vec<Vec<usize>> = vec![Vec::new(); levels];
+
+        // bottom level: fixed spacing
+        {
+            let y = levels - 1;
+            let mut x = 0usize;
+            for _ in 0..leaf_count {
+                positions[y].push(x);
+                x += spacing;
+            }
+        }
+
+        // parents: midpoint of children, preserving spacing
+        for level in (0..levels - 1).rev() {
+            let child = positions[level + 1].clone();
+            let mut parent = Vec::with_capacity(node_data[level].len());
+
+            for j in 0..node_data[level].len() {
+                if j + 1 < child.len() {
+                    let left = child[j] + node_width / 2;
+                    let right = child[j + 1] + node_width / 2;
+                    let mid = (left + right) / 2;
+                    parent.push(mid.saturating_sub(node_width / 2));
+                }
+            }
+
+            positions[level] = parent;
+        }
+
+        /* ---------- Render nodes ---------- */
+
+        for level_idx in 0..levels {
+            let row_offset = level_idx * 3;
+            let price_row = row_offset;
+            let value_row = row_offset + 1;
+
+            for (node_idx, (price_str, value_str)) in node_data[level_idx].iter().enumerate() {
+                let x = positions[level_idx][node_idx];
+
+                // Render price line (centered)
+                let price_label = format!("P:{}", price_str);
+                let padding_left = (node_width.saturating_sub(price_label.len())) / 2;
+                for (k, ch) in price_label.chars().enumerate() {
+                    if x + padding_left + k < width {
+                        canvas[price_row][x + padding_left + k] = ch;
+                    }
+                }
+
+                // Render value line (centered)
+                let value_label = format!("V:{}", value_str);
+                let padding_left = (node_width.saturating_sub(value_label.len())) / 2;
+                for (k, ch) in value_label.chars().enumerate() {
+                    if x + padding_left + k < width && value_row < rows {
+                        canvas[value_row][x + padding_left + k] = ch;
+                    }
+                }
+            }
+        }
+
+        /* ---------- Render connectors ---------- */
+
+        for level_idx in 0..levels - 1 {
+            let connector_row = (level_idx + 1) * 3 - 1;
+
+            for j in 0..node_data[level_idx].len() {
+                let p = positions[level_idx][j] + node_width / 2;
+                if j + 1 >= positions[level_idx + 1].len() {
+                    continue;
+                }
+                let l = positions[level_idx + 1][j] + node_width / 2;
+                let r = positions[level_idx + 1][j + 1] + node_width / 2;
+
+                // Horizontal line
+                for x in l.min(p)..=r.max(p) {
+                    if x < width && connector_row < rows && canvas[connector_row][x] == ' ' {
+                        canvas[connector_row][x] = '─';
+                    }
+                }
+
+                if p < width && connector_row < rows {
+                    canvas[connector_row][p] = '┼';
+                }
+            }
+        }
+
+        // Render child connectors (check if each child has one or two parents)
+        for level_idx in 0..levels - 1 {
+            let connector_row = (level_idx + 1) * 3 - 1;
+            let num_children = positions[level_idx + 1].len();
+            let num_parents = positions[level_idx].len();
+
+            for child_idx in 0..num_children {
+                let child_pos = positions[level_idx + 1][child_idx] + node_width / 2;
+
+                // Check if this child has one or two parents
+                let has_left_parent = child_idx < num_parents;
+                let has_right_parent = child_idx > 0 && child_idx - 1 < num_parents;
+
+                if child_pos < width && connector_row < rows {
+                    match (has_left_parent, has_right_parent) {
+                        (true, true) => {
+                            // Two parents: show \/ pattern
+                            canvas[connector_row][child_pos] = '\\';
+                            if child_pos + 1 < width {
+                                canvas[connector_row][child_pos + 1] = '/';
+                            }
+                        }
+                        (true, false) => {
+                            // Only left parent: show /
+                            canvas[connector_row][child_pos] = '╱';
+                        }
+                        (false, true) => {
+                            // Only right parent: show \
+                            canvas[connector_row][child_pos] = '╲';
+                        }
+                        (false, false) => {
+                            // No parents (shouldn't happen)
+                        }
+                    }
+                }
+            }
+        }
+
+        /* ---------- Output ---------- */
+
+        for row in canvas {
+            let line: String = row.into_iter().collect();
+            writeln!(f, "{}", line.trim_end())?;
+        }
+
+        Ok(())
+    }
+}
+
 #[allow(private_bounds)]
-impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::ValueAtBorder> EvaluatedBinomialTreeModelImpl<Stack, V, U> {
-    pub fn value(&self) -> Value
-    {
+impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::ValueAtBorder>
+    EvaluatedBinomialTreeModelImpl<Stack, V, U>
+{
+    pub fn value(&self) -> Value {
         let initial_node = <<Stack as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType::default();
         let value = self.map.get(&initial_node).unwrap().get();
         Value(*value)
@@ -251,21 +525,23 @@ impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::Val
         self.delta_from(&<<Stack as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType::default())
     }
 
-    fn delta_from(&self, from_node: &<<Stack as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType) -> Delta {
+    fn delta_from(
+        &self,
+        from_node: &<<Stack as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType,
+    ) -> Delta {
         let last_up = from_node.up();
-        let last_up_value =  self.map.get(&last_up).unwrap().get();
+        let last_up_value = self.map.get(&last_up).unwrap().get();
         let last_down = from_node.down();
         let last_down_value = self.map.get(&last_down).unwrap().get();
-        let h = last_up.value(self.model.spot.0, self.model.params.u, self.model.params.d) - last_down.value(
-            self.model.spot.0,
-            self.model.params.u,
-            self.model.params.d
-        );
+        let h = last_up.value(self.model.spot.0, self.model.params.u, self.model.params.d)
+            - last_down.value(self.model.spot.0, self.model.params.u, self.model.params.d);
 
         if h != 0.0 {
             let delta = (last_up_value - last_down_value) / h;
             Delta(delta)
-        } else { Delta(0.0) }
+        } else {
+            Delta(0.0)
+        }
     }
 
     pub fn gamma(&self) -> Gamma {
@@ -279,8 +555,7 @@ impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::Val
 
         if spot_u == spot_d {
             Gamma(0.0)
-        }
-        else {
+        } else {
             Gamma((delta_u.0 - delta_d.0) / (spot_u - spot_d))
         }
     }
@@ -305,7 +580,6 @@ impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::Val
     }
 }
 
-
 pub struct Spot(pub f32);
 pub struct Expiry(pub f32);
 
@@ -321,8 +595,13 @@ pub struct VolatilityParameters {
 }
 
 impl VolatilityParameters {
-    pub fn new(volatility: f32, interest_rate: f32, dividends: f32, timestep: f32) -> VolatilityParameters {
-        let u= (volatility*timestep.sqrt()).exp();
+    pub fn new(
+        volatility: f32,
+        interest_rate: f32,
+        dividends: f32,
+        timestep: f32,
+    ) -> VolatilityParameters {
+        let u = (volatility * timestep.sqrt()).exp();
         VolatilityParameters {
             a: ((interest_rate - dividends) * timestep).exp(),
             u,
@@ -334,7 +613,7 @@ impl VolatilityParameters {
     }
 
     pub(crate) fn p(&self) -> f32 {
-        (self.a - self.d)/(self.u - self.d)
+        (self.a - self.d) / (self.u - self.d)
     }
 }
 
@@ -361,15 +640,43 @@ pub struct Theta(pub f32);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::smoothing::Black;
     use crate::binomial_tree_map::r#static::StaticBinomialTreeMap;
     use crate::instruments::{AmericanOption, EuropeanOption, OptionType};
+    use crate::model::smoothing::Black;
     use crate::{binomial_tree_map, eval_binomial_tree_with_steps};
+    #[cfg(test)]
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_binomial_tree_display_connector_patterns() {
+        let tree_map = binomial_tree_map!(3);
+        let model: CoxRossRubenstein<StaticBinomialTreeMap> =
+            CoxRossRubenstein::new(tree_map, Spot(100.0), 3, Expiry(0.5), 0.3, 0.05, 0.0);
+        let option = EuropeanOption::new(OptionType::Call, 95.0, 0.5);
+        let eval = model.eval(option);
+
+        let display_output = format!("{}", eval);
+
+        let expected = r#"                        P:100.00
+                        V:12.7897
+                    ╱───────┼────────╲
+                 P:88.47         P:113.03
+                V:21.1817        V:4.4950
+            ╱───────┼────────\/──────┼────────╲
+         P:78.27         P:100.00         P:127.76
+        V:33.5440        V:9.0022         V:0.0000
+    ╱───────┼────────\/──────┼────────\/──────┼────────╲
+ P:69.25          P:88.47         P:113.03         P:144.40
+V:49.4009        V:18.0290        V:0.0000         V:0.0000"#;
+
+        pretty_assertions::assert_eq!(display_output.trim_end(), expected);
+    }
 
     #[test]
     fn test_binomial_tree_european_call() {
         let tree_map = binomial_tree_map!(2);
-        let model: CoxRossRubenstein<StaticBinomialTreeMap> = CoxRossRubenstein::new(tree_map, Spot(100.0), 2, Expiry(0.5), 0.3, 0.05, 0.0);
+        let model: CoxRossRubenstein<StaticBinomialTreeMap> =
+            CoxRossRubenstein::new(tree_map, Spot(100.0), 2, Expiry(0.5), 0.3, 0.05, 0.0);
         let option = EuropeanOption::new(OptionType::Call, 95.0, 0.5);
         let greeks = model.eval(option);
         assert_eq!(greeks.value(), Value(12.3578));
@@ -379,7 +686,8 @@ mod tests {
     #[test]
     fn test_binomial_tree_european_call2() {
         let tree_map = binomial_tree_map!(2);
-        let model: CoxRossRubenstein<StaticBinomialTreeMap> = CoxRossRubenstein::new(tree_map, Spot(810.0), 2, Expiry(0.5), 0.2, 0.05, 0.02);
+        let model: CoxRossRubenstein<StaticBinomialTreeMap> =
+            CoxRossRubenstein::new(tree_map, Spot(810.0), 2, Expiry(0.5), 0.2, 0.05, 0.02);
         let option = EuropeanOption::new(OptionType::Call, 800.0, 0.5);
         let greeks = model.eval(option);
         assert_eq!(greeks.value(), Value(53.394733));
@@ -389,7 +697,8 @@ mod tests {
     #[test]
     fn test_binomial_tree_european_call3() {
         let tree_map = binomial_tree_map!(3);
-        let model: CoxRossRubenstein<StaticBinomialTreeMap> = CoxRossRubenstein::new(tree_map, Spot(0.61), 3, Expiry(0.25), 0.12, 0.05, 0.07);
+        let model: CoxRossRubenstein<StaticBinomialTreeMap> =
+            CoxRossRubenstein::new(tree_map, Spot(0.61), 3, Expiry(0.25), 0.12, 0.05, 0.07);
         let option = EuropeanOption::new(OptionType::Call, 0.6, 0.25);
         let greeks = model.eval(option);
         assert_eq!(greeks.value(), Value(0.018597357));
@@ -399,7 +708,8 @@ mod tests {
     #[test]
     fn test_binomial_tree_european_put1() {
         let tree_map = binomial_tree_map!(2);
-        let model: CoxRossRubenstein<StaticBinomialTreeMap> = CoxRossRubenstein::new(tree_map, Spot(50.0), 2, Expiry(2.0), 0.3, 0.05, 0.0);
+        let model: CoxRossRubenstein<StaticBinomialTreeMap> =
+            CoxRossRubenstein::new(tree_map, Spot(50.0), 2, Expiry(2.0), 0.3, 0.05, 0.0);
         let option = EuropeanOption::new(OptionType::Put, 52.0, 2.0);
         let greeks = model.eval(option);
         assert_eq!(greeks.value(), Value(6.2457113));
@@ -409,22 +719,27 @@ mod tests {
     #[test]
     fn test_binomial_tree_american_put1() {
         let tree_map = binomial_tree_map!(2);
-        let model: CoxRossRubenstein<StaticBinomialTreeMap> = CoxRossRubenstein::new(tree_map, Spot(50.0), 2, Expiry(2.0), 0.3, 0.05, 0.0);
+        let model: CoxRossRubenstein<StaticBinomialTreeMap> =
+            CoxRossRubenstein::new(tree_map, Spot(50.0), 2, Expiry(2.0), 0.3, 0.05, 0.0);
         let option = AmericanOption::new(OptionType::Put, 52.0, 2.0);
         let eval = model.eval(option);
 
-        assert_eq!(eval.greeks(), Greeks{
-            value: Value(7.428405),
-            delta: Delta(-0.4606061),
-            gamma: Gamma(-0.0), // Hmm
-            theta: Theta(-2.7142024),
-        })
+        assert_eq!(
+            eval.greeks(),
+            Greeks {
+                value: Value(7.428405),
+                delta: Delta(-0.4606061),
+                gamma: Gamma(-0.0), // Hmm
+                theta: Theta(-2.7142024),
+            }
+        )
     }
 
     #[test]
     fn test_binomial_tree_american_put2() {
         let tree_map = binomial_tree_map!(3);
-        let model: CoxRossRubenstein<StaticBinomialTreeMap> = CoxRossRubenstein::new(tree_map, Spot(31.0), 3, Expiry(0.75), 0.3, 0.05, 0.05);
+        let model: CoxRossRubenstein<StaticBinomialTreeMap> =
+            CoxRossRubenstein::new(tree_map, Spot(31.0), 3, Expiry(0.75), 0.3, 0.05, 0.05);
         let option = AmericanOption::new(OptionType::Put, 30.0, 0.75);
         let greeks = model.eval(option);
         assert_eq!(greeks.value(), Value(2.8356347));
@@ -435,8 +750,9 @@ mod tests {
     #[test]
     fn test_binomial_tree_american_put3() {
         let tree_map = binomial_tree_map!(3);
-        let model: CoxRossRubenstein<StaticBinomialTreeMap> = CoxRossRubenstein::new(tree_map, Spot(60.0), 3, Expiry(3.0/12.0), 0.45, 0.1, 0.00);
-        let option = AmericanOption::new(OptionType::Put, 60.0, 3.0/12.0);
+        let model: CoxRossRubenstein<StaticBinomialTreeMap> =
+            CoxRossRubenstein::new(tree_map, Spot(60.0), 3, Expiry(3.0 / 12.0), 0.45, 0.1, 0.00);
+        let option = AmericanOption::new(OptionType::Put, 60.0, 3.0 / 12.0);
         let greeks = model.eval(option);
         assert_eq!(greeks.value(), Value(5.1627836));
         assert_eq!(greeks.delta(), Delta(-0.43557432));
@@ -447,8 +763,16 @@ mod tests {
     fn test_binomial_tree_american_fut_call1() {
         let tree_map = binomial_tree_map!(3);
         // Notice r = q for futs
-        let model: CoxRossRubenstein<StaticBinomialTreeMap> = CoxRossRubenstein::new(tree_map, Spot(400.0), 3, Expiry(9.0/12.0), 0.35, 0.06, 0.06);
-        let option = AmericanOption::new(OptionType::Call, 420.0, 9.0/12.0);
+        let model: CoxRossRubenstein<StaticBinomialTreeMap> = CoxRossRubenstein::new(
+            tree_map,
+            Spot(400.0),
+            3,
+            Expiry(9.0 / 12.0),
+            0.35,
+            0.06,
+            0.06,
+        );
+        let option = AmericanOption::new(OptionType::Call, 420.0, 9.0 / 12.0);
         let greeks = model.eval(option);
         assert_eq!(greeks.value(), Value(42.06769));
         assert_eq!(greeks.delta(), Delta(0.48716724));
@@ -458,7 +782,8 @@ mod tests {
     #[test]
     fn test_binomial_tree_american_put2_100steps() {
         let tree_map = binomial_tree_map!(100);
-        let model: CoxRossRubenstein<StaticBinomialTreeMap> = CoxRossRubenstein::new(tree_map, Spot(31.0), 100, Expiry(0.75), 0.3, 0.05, 0.05);
+        let model: CoxRossRubenstein<StaticBinomialTreeMap> =
+            CoxRossRubenstein::new(tree_map, Spot(31.0), 100, Expiry(0.75), 0.3, 0.05, 0.05);
         let option = AmericanOption::new(OptionType::Put, 30.0, 0.75);
         let greeks = model.eval(option);
         assert_eq!(greeks.value(), Value(2.6043036));
@@ -469,38 +794,53 @@ mod tests {
     // Estimate for rate of convergence
     // Senning, Jonathan R. "Computing and Estimating the Rate of Convergence https://www.math-cs.gordon.edu/courses/ma342/handouts/rate.pdf
     fn rate_of_convergence(errors: [f32; 4]) -> f32 {
-        ((errors[3] - errors[2])/(errors[2] - errors[1])).abs().ln() / ((errors[2] - errors[1])/(errors[1] - errors[0])).abs().ln()
+        ((errors[3] - errors[2]) / (errors[2] - errors[1]))
+            .abs()
+            .ln()
+            / ((errors[2] - errors[1]) / (errors[1] - errors[0]))
+                .abs()
+                .ln()
     }
 
     // Mark S. Joshi, "The Convergence of Binomial Trees For Pricing the American Put"
     // https://fbe.unimelb.edu.au/__data/assets/pdf_file/0010/2591884/170.pdf
     fn relative_error(tree_price: f32, true_price: f32, intrinsic_value: f32) -> f32 {
-        (tree_price - true_price)/(0.5 + true_price - intrinsic_value)
+        (tree_price - true_price) / (0.5 + true_price - intrinsic_value)
     }
 
     fn eval_american_option_example(steps: usize) -> f32 {
-
         if steps > 128 {
             let tree_map = crate::binomial_tree_map::dynamic::DynamicBinomialTreeMap::new(steps);
-            let binom_tree: CoxRossRubenstein<crate::binomial_tree_map::dynamic::DynamicBinomialTreeMap, Black> = CoxRossRubenstein::new(
-                tree_map,
-                Spot(100.0),
+            let binom_tree: CoxRossRubenstein<
+                crate::binomial_tree_map::dynamic::DynamicBinomialTreeMap,
+                Black,
+            > = CoxRossRubenstein::new(tree_map, Spot(100.0), steps, Expiry(0.5), 0.3, 0.05, 0.0);
+
+            binom_tree
+                .eval(AmericanOption::new(OptionType::Call, 95.0, 0.5))
+                .value()
+                .0
+        } else {
+            eval_binomial_tree_with_steps!(
                 steps,
-                Expiry(0.5),
+                AmericanOption,
+                Call,
+                95.0,
+                100.0,
+                0.5,
                 0.3,
                 0.05,
-                0.0);
-
-            binom_tree.eval(AmericanOption::new(OptionType::Call, 95.0, 0.5)).value().0
-        } else {
-            eval_binomial_tree_with_steps!(steps, AmericanOption, Call, 95.0, 100.0, 0.5, 0.3, 0.05, 0.0).value().0
+                0.0
+            )
+            .value()
+            .0
         }
     }
 
     fn eval_and_calculate_relative_error(steps: usize) -> f32 {
         let true_value = 12.32791655;
 
-        let val= eval_american_option_example(steps);
+        let val = eval_american_option_example(steps);
 
         let option = AmericanOption::new(OptionType::Call, 95.0, 0.5);
         let intrinsic = option.intrinsic_value(100.0);

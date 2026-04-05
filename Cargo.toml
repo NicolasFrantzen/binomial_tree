@@ -16,6 +16,9 @@ rayon = "1.10.0"
 id-arena = "2.2.1"
 statrs = "0.18.0"
 
+[dev-dependencies]
+pretty_assertions = "1.4"
+
 [profile.release-with-debug]
 inherits = "release"
 debug = true

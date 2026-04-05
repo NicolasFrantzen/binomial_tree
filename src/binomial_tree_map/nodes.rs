@@ -57,7 +57,7 @@ impl NodeNameTrait for NodeName {
 
     fn up(&self) -> Self {
         // NOTE: Prepending is equivalent with sorting if downs are appended
-        NodeName{ name: once(UpDown::Up).chain(self.name.iter().cloned()).collect() }
+        NodeName{name: once(UpDown::Up).chain(self.name.iter().cloned()).collect()}
     }
 
     fn down(&self) -> Self {

@@ -68,10 +68,7 @@ impl BinomialTreeMapImpl for StaticContainer {
 }
 
 impl BinomialTreeStackImpl for StaticBinomialTreeMap {
-    //type NodeNameType = NodeName2;
     type NodeNameContainerType = StaticContainer;
-
-
 
     fn iter(&self) -> impl DoubleEndedIterator +
         ExactSizeIterator<
