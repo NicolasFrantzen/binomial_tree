@@ -336,7 +336,7 @@ impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::Val
         for (i, level) in self.model.stack.iter().enumerate() {
             let mut row = Vec::with_capacity(level.len());
             for (j, node) in level.iter().enumerate() {
-                let value = self.map.get(&node).unwrap().get();
+                let value = self.map.get(node).unwrap().get();
                 let price = self.model.spot.0
                     * self.model.params.u.powi(j as i32)
                     * self.model.params.d.powi((i - j) as i32);
