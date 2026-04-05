@@ -1,5 +1,5 @@
 use crate::binomial_tree_map::capacity::{calculate_capacity, calculate_step_capacity};
-use crate::binomial_tree_map::nodes::{NodeName, NodeNameTrait, ALL_UPDOWNS};
+use crate::binomial_tree_map::nodes::{ALL_UPDOWNS, NodeName, NodeNameTrait};
 use crate::binomial_tree_map::{
     BinomialTreeMapImpl, BinomialTreeMapNumericType, BinomialTreeMapValue, BinomialTreeStackImpl,
 };

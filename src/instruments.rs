@@ -27,7 +27,11 @@ pub struct AmericanOption {
 
 impl OptionContract for AmericanOption {
     fn new(option_type: OptionType, strike: f32, expiry: f32) -> Self {
-        Self{ option_type, strike, expiry }
+        Self {
+            option_type,
+            strike,
+            expiry,
+        }
     }
 
     fn expiry(&self) -> f32 {
@@ -36,7 +40,9 @@ impl OptionContract for AmericanOption {
     fn strike(&self) -> f32 {
         self.strike
     }
-    fn option_type(&self) -> OptionType { self.option_type }
+    fn option_type(&self) -> OptionType {
+        self.option_type
+    }
 
     fn value(&self, value: f32, price: f32) -> f32 {
         let payoff = self.intrinsic_value(price);
@@ -52,7 +58,11 @@ pub struct EuropeanOption {
 
 impl OptionContract for EuropeanOption {
     fn new(option_type: OptionType, strike: f32, expiry: f32) -> Self {
-        Self { option_type, strike, expiry }
+        Self {
+            option_type,
+            strike,
+            expiry,
+        }
     }
 
     fn expiry(&self) -> f32 {
@@ -61,7 +71,9 @@ impl OptionContract for EuropeanOption {
     fn strike(&self) -> f32 {
         self.strike
     }
-    fn option_type(&self) -> OptionType { self.option_type }
+    fn option_type(&self) -> OptionType {
+        self.option_type
+    }
 
     fn value(&self, value: f32, _: f32) -> f32 {
         value
@@ -74,7 +86,7 @@ mod tests {
 
     #[test]
     fn test_american() {
-        let option = AmericanOption{
+        let option = AmericanOption {
             option_type: OptionType::Put,
             strike: 50.0,
             expiry: 0.5,
@@ -90,7 +102,7 @@ mod tests {
 
     #[test]
     fn test_european() {
-        let option = EuropeanOption{
+        let option = EuropeanOption {
             option_type: OptionType::Put,
             strike: 50.0,
             expiry: 0.5,

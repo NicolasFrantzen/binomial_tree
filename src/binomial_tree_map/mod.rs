@@ -5,10 +5,10 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::ops::Deref;
 
-pub mod dynamic; // TODO: Visibility
-pub mod r#static; // TODO: Visibility
 mod capacity;
+pub mod dynamic; // TODO: Visibility
 pub(crate) mod nodes;
+pub mod r#static; // TODO: Visibility
 
 pub(crate) type BinomialTreeMapNumericType = f32;
 pub(crate) type BinomialTreeMapValue<T> = OnceCell<T>;
@@ -26,7 +26,7 @@ pub(crate) trait BinomialTreeMapImpl {
 
 pub(crate) trait BinomialTreeStackImpl {
     type NodeNameContainerType: BinomialTreeMapImpl + Default + Debug;
-    
+
     fn iter(&self) -> impl DoubleEndedIterator + ExactSizeIterator<Item=&impl Deref<Target=[<<Self as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType]>>;
 }
 
@@ -36,8 +36,7 @@ pub(crate) trait GetValue {
 
 impl GetValue for BinomTreeValueType {
     fn get(&self) -> &f32 {
-        let value =  self.get();
+        let value = self.get();
         value.expect("The tree should be evaluated backwards")
     }
 }
-
