@@ -5,22 +5,25 @@ pub fn black_value(
     option_type: OptionType,
     spot: f32,
     strike: f32,
-    vol:  f32,
+    vol: f32,
     rate: f32,
     dividends: f32,
-    expiry: f32
+    expiry: f32,
 ) -> f32 {
     let n = Normal::new();
 
-    let d1 = (((spot/strike).ln() + expiry*(rate - dividends + vol.powi(2)/2.0))/(vol * expiry.sqrt())) as f64;
+    let d1 = (((spot / strike).ln() + expiry * (rate - dividends + vol.powi(2) / 2.0))
+        / (vol * expiry.sqrt())) as f64;
     let d2 = d1 - (vol * expiry.sqrt()) as f64;
 
     match option_type {
         OptionType::Put => {
-            strike * (-rate*expiry).exp() * (n.cdf(-d2) as f32) - spot * (-dividends*expiry).exp() * (n.cdf(-d1) as f32)
+            strike * (-rate * expiry).exp() * (n.cdf(-d2) as f32)
+                - spot * (-dividends * expiry).exp() * (n.cdf(-d1) as f32)
         }
         OptionType::Call => {
-            spot * (-dividends*expiry).exp() * (n.cdf(d1) as f32) - strike * (-rate*expiry).exp() * (n.cdf(d2) as f32)
+            spot * (-dividends * expiry).exp() * (n.cdf(d1) as f32)
+                - strike * (-rate * expiry).exp() * (n.cdf(d2) as f32)
         }
     }
 }

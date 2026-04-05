@@ -22,7 +22,6 @@ impl From<&UpDown> for char {
 
 impl std::fmt::Display for UpDown {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-
         write!(f, "{}", char::from(self))
     }
 }
@@ -34,7 +33,7 @@ impl TryFrom<char> for UpDown {
         match value {
             'U' => Ok(UpDown::Up),
             'D' => Ok(UpDown::Down),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }
@@ -57,16 +56,24 @@ impl NodeNameTrait for NodeName {
 
     fn up(&self) -> Self {
         // NOTE: Prepending is equivalent with sorting if downs are appended
-        NodeName{name: once(UpDown::Up).chain(self.name.iter().cloned()).collect()}
+        NodeName {
+            name: once(UpDown::Up).chain(self.name.iter().cloned()).collect(),
+        }
     }
 
     fn down(&self) -> Self {
         // NOTE: Appending is equivalent with sorting if ups are prepended
-        NodeName{name: self.name.iter().chain(once(&UpDown::Down)).cloned().collect()}
+        NodeName {
+            name: self
+                .name
+                .iter()
+                .chain(once(&UpDown::Down))
+                .cloned()
+                .collect(),
+        }
     }
 
-    fn value(&self, initial_value: f32, up_probability: f32, down_probability: f32) -> f32
-    {
+    fn value(&self, initial_value: f32, up_probability: f32, down_probability: f32) -> f32 {
         let mut value = initial_value;
 
         for i in self.iter() {
@@ -107,13 +114,15 @@ impl TryFrom<&str> for NodeName {
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let updowns: Result<Vec<_>, _> = value.chars().map(UpDown::try_from).collect();
 
-        Ok(NodeName{name: updowns?})
+        Ok(NodeName { name: updowns? })
     }
 }
 
 impl From<NodeName2> for NodeName {
     fn from(value: NodeName2) -> Self {
-        NodeName{ name: value.name.into() }
+        NodeName {
+            name: value.name.into(),
+        }
     }
 }
 
@@ -133,15 +142,20 @@ impl NodeNameTrait for NodeName2 {
     type NameType = &'static [UpDown];
 
     fn up(&self) -> Self {
-        Self { name: self.name, direction: Some(UpDown::Up) }
+        Self {
+            name: self.name,
+            direction: Some(UpDown::Up),
+        }
     }
 
     fn down(&self) -> Self {
-        Self { name: self.name, direction: Some(UpDown::Down) }
+        Self {
+            name: self.name,
+            direction: Some(UpDown::Down),
+        }
     }
 
-    fn value(&self, initial_value: f32, up_value: f32, down_value: f32) -> f32
-    {
+    fn value(&self, initial_value: f32, up_value: f32, down_value: f32) -> f32 {
         let mut value = initial_value;
 
         for i in self.iter() {
@@ -161,7 +175,9 @@ impl NodeNameTrait for NodeName2 {
 
 impl NodeName2 {
     pub(crate) fn iter(&self) -> impl Iterator<Item = &UpDown> {
-        self.name.iter().chain(std::iter::from_fn(|| self.direction.as_ref()).take(1))
+        self.name
+            .iter()
+            .chain(std::iter::from_fn(|| self.direction.as_ref()).take(1))
     }
 }
 
@@ -186,31 +202,33 @@ impl Hash for NodeName2 {
 impl PartialEq for NodeName2 {
     fn eq(&self, other: &Self) -> bool {
         if self.direction == other.direction {
-            return self.name == other.name
+            return self.name == other.name;
         }
         if let Some(direction) = other.direction {
             if self.name.is_empty() {
-                return other.name.is_empty() && self.direction == other.direction
+                return other.name.is_empty() && self.direction == other.direction;
             }
             match direction {
                 UpDown::Up => {
                     return &self.name[1..] == other.name && self.name[0] == direction;
                 }
                 UpDown::Down => {
-                    return &self.name[..self.name.len() - 1] == other.name && self.name[self.name.len() - 1] == direction;
+                    return &self.name[..self.name.len() - 1] == other.name
+                        && self.name[self.name.len() - 1] == direction;
                 }
             }
         }
         if let Some(direction) = self.direction {
             if other.name.is_empty() {
-                return self.name.is_empty() && self.direction == other.direction
+                return self.name.is_empty() && self.direction == other.direction;
             }
             match direction {
                 UpDown::Up => {
                     return &other.name[1..] == self.name && other.name[0] == direction;
                 }
                 UpDown::Down => {
-                    return &other.name[..other.name.len() - 1] == self.name && other.name[other.name.len() - 1] == direction;
+                    return &other.name[..other.name.len() - 1] == self.name
+                        && other.name[other.name.len() - 1] == direction;
                 }
             }
         }
@@ -228,27 +246,64 @@ mod tests {
     #[test]
     fn test_nodename2_hash() {
         let mut hashmap = hashbrown::HashMap::new();
-        hashmap.insert(NodeName2 { name: &[UpDown::Up, UpDown::Down], direction: None }, 1234);
+        hashmap.insert(
+            NodeName2 {
+                name: &[UpDown::Up, UpDown::Down],
+                direction: None,
+            },
+            1234,
+        );
 
-        let first = NodeName2 { name: &[UpDown::Up, UpDown::Down], direction: None };
-        let second = NodeName2 { name: &[UpDown::Up], direction: Some(UpDown::Down) };
+        let first = NodeName2 {
+            name: &[UpDown::Up, UpDown::Down],
+            direction: None,
+        };
+        let second = NodeName2 {
+            name: &[UpDown::Up],
+            direction: Some(UpDown::Down),
+        };
         assert!(first.eq(&second));
 
         assert!(hashmap.get(&first).is_some());
         assert!(hashmap.get(&second).is_some());
 
-        let third = NodeName2 { name: &[UpDown::Up], direction: None }.down();
+        let third = NodeName2 {
+            name: &[UpDown::Up],
+            direction: None,
+        }
+        .down();
         assert!(hashmap.get(&third).is_some());
 
         // Check that we can get the equivalent key back
-        assert_eq!(hashmap.get_key_value(&second), Some((&NodeName2 { name: &[UpDown::Up, UpDown::Down], direction: None }, &1234)));
+        assert_eq!(
+            hashmap.get_key_value(&second),
+            Some((
+                &NodeName2 {
+                    name: &[UpDown::Up, UpDown::Down],
+                    direction: None
+                },
+                &1234
+            ))
+        );
 
         // Check some special cases
         let mut hashmap = hashbrown::HashMap::new();
-        hashmap.insert(NodeName2 { name: &[UpDown::Down], direction: None }, 1234);
+        hashmap.insert(
+            NodeName2 {
+                name: &[UpDown::Down],
+                direction: None,
+            },
+            1234,
+        );
         assert!(hashmap.get(&NodeName2::default().down()).is_some());
 
-        assert_eq!(NodeName2 { name: &[UpDown::Down], direction: None }, NodeName2::default().down());
+        assert_eq!(
+            NodeName2 {
+                name: &[UpDown::Down],
+                direction: None
+            },
+            NodeName2::default().down()
+        );
         assert_ne!(NodeName2::default(), NodeName2::default().down());
     }
 
@@ -257,26 +312,63 @@ mod tests {
         assert_eq!(UpDown::try_from('U').unwrap(), UpDown::Up);
         assert_eq!(UpDown::try_from('D').unwrap(), UpDown::Down);
 
-
-        assert_eq!(NodeName::try_from("UD").unwrap(),
-                   NodeName{name: vec![UpDown::Up, UpDown::Down]});
-        assert_eq!(NodeName::try_from("UDD").unwrap(),
-                   NodeName{name: vec![UpDown::Up, UpDown::Down, UpDown::Down]});
+        assert_eq!(
+            NodeName::try_from("UD").unwrap(),
+            NodeName {
+                name: vec![UpDown::Up, UpDown::Down]
+            }
+        );
+        assert_eq!(
+            NodeName::try_from("UDD").unwrap(),
+            NodeName {
+                name: vec![UpDown::Up, UpDown::Down, UpDown::Down]
+            }
+        );
     }
 
     #[test]
     fn test_node_name_up_down() {
         let name = NodeName { name: vec![] };
 
-        assert_eq!(name.up(), NodeName { name: vec![UpDown::Up] });
-        assert_eq!(name.down(), NodeName { name: vec![UpDown::Down] });
+        assert_eq!(
+            name.up(),
+            NodeName {
+                name: vec![UpDown::Up]
+            }
+        );
+        assert_eq!(
+            name.down(),
+            NodeName {
+                name: vec![UpDown::Down]
+            }
+        );
 
         let up_name = name.up();
-        assert_eq!(up_name.up(), NodeName { name: vec![UpDown::Up, UpDown::Up] });
-        assert_eq!(up_name.down(), NodeName { name: vec![UpDown::Up, UpDown::Down] });
+        assert_eq!(
+            up_name.up(),
+            NodeName {
+                name: vec![UpDown::Up, UpDown::Up]
+            }
+        );
+        assert_eq!(
+            up_name.down(),
+            NodeName {
+                name: vec![UpDown::Up, UpDown::Down]
+            }
+        );
 
         let down_name = name.down();
-        assert_eq!(down_name.up(), NodeName { name: vec![UpDown::Up, UpDown::Down] });
-        assert_eq!(down_name.down(), NodeName { name: vec![UpDown::Down, UpDown::Down] });
+        assert_eq!(
+            down_name.up(),
+            NodeName {
+                name: vec![UpDown::Up, UpDown::Down]
+            }
+        );
+        assert_eq!(
+            down_name.down(),
+            NodeName {
+                name: vec![UpDown::Down, UpDown::Down]
+            }
+        );
     }
 }

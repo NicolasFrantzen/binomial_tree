@@ -44,7 +44,10 @@ impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::Val
         }
     }
 
-    pub fn eval<T: OptionContract + Sync>(self, option: T) -> EvaluatedBinomialTreeModelImpl<Stack, V, U> {
+    pub fn eval<T: OptionContract + Sync>(
+        self,
+        option: T,
+    ) -> EvaluatedBinomialTreeModelImpl<Stack, V, U> {
         let p = self.params.p();
 
         let mut tree_map = <Stack as BinomialTreeStackImpl>::NodeNameContainerType::default();

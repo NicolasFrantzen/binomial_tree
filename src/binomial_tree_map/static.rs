@@ -1,12 +1,12 @@
-use std::cell::OnceCell;
-use std::ops::Deref;
+use crate::binomial_tree_map::BinomialTreeMapNumericType;
+use crate::binomial_tree_map::capacity::calculate_capacity;
+use crate::binomial_tree_map::nodes::{NodeName2, NodeNameTrait, UpDown};
+use crate::binomial_tree_map::{BinomTreeValueType, BinomialTreeMapImpl, BinomialTreeStackImpl};
+use binomial_tree_macro::binomial_tree_stack;
 use hashbrown::HashMap;
 use id_arena::{Arena, Id};
-use binomial_tree_macro::binomial_tree_stack;
-use crate::binomial_tree_map::capacity::calculate_capacity;
-use crate::binomial_tree_map::{BinomTreeValueType, BinomialTreeMapImpl, BinomialTreeStackImpl};
-use crate::binomial_tree_map::BinomialTreeMapNumericType;
-use crate::binomial_tree_map::nodes::{NodeName2, NodeNameTrait, UpDown};
+use std::cell::OnceCell;
+use std::ops::Deref;
 
 pub const MAX_TREE_SIZE: usize = 128;
 const PRE_ALLOCATED_STACK: &[&[NodeName2]] = binomial_tree_stack!(128);
@@ -18,13 +18,10 @@ pub struct StaticBinomialTreeMap {
 }
 
 impl StaticBinomialTreeMap {
-    pub fn with_capacity(capacity: usize) -> StaticBinomialTreeMap
-    {
+    pub fn with_capacity(capacity: usize) -> StaticBinomialTreeMap {
         let stack: &'static [&'static [NodeName2]] = &PRE_ALLOCATED_STACK[..=capacity]; // TODO: This trick could probably be used in a dynamic case as well!
 
-        StaticBinomialTreeMap {
-            stack,
-        }
+        StaticBinomialTreeMap { stack }
     }
 }
 
@@ -38,7 +35,7 @@ impl Default for StaticContainer {
     fn default() -> Self {
         Self {
             arena: Arena::with_capacity(MAX_CAPACITY),
-            map: HashMap::<NodeName2, Id<BinomTreeValueType>>::with_capacity(MAX_CAPACITY)
+            map: HashMap::<NodeName2, Id<BinomTreeValueType>>::with_capacity(MAX_CAPACITY),
         }
     }
 }
@@ -47,7 +44,6 @@ impl BinomialTreeMapImpl for StaticContainer {
     type NodeNameType = NodeName2;
     type NumericType = BinomialTreeMapNumericType;
     type ValueType = BinomTreeValueType;
-
 
     fn get(&self, node_name: &Self::NodeNameType) -> Option<&Self::ValueType> {
         let id = self.map.get(node_name)?;
@@ -75,7 +71,7 @@ impl BinomialTreeStackImpl for StaticBinomialTreeMap {
             Item=&impl Deref<
                 Target=[<<Self as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType]
             >
-        > {
+    >{
         self.stack.iter()
     }
 }
@@ -85,6 +81,5 @@ mod tests {
     //use super::*;
 
     #[test]
-    fn test_static_binomial_tree() {
-    }
+    fn test_static_binomial_tree() {}
 }

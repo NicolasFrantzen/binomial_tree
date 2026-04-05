@@ -1,9 +1,7 @@
 #[doc(hidden)]
 #[macro_export]
 macro_rules! binomial_tree_map {
-    ($N:expr) => {{
-        $crate::binomial_tree_map::r#static::StaticBinomialTreeMap::with_capacity($N)
-    }};
+    ($N:expr) => {{ $crate::binomial_tree_map::r#static::StaticBinomialTreeMap::with_capacity($N) }};
 }
 /// Evaluates a binomial tree for an option with specified parameters.
 ///
@@ -35,9 +33,9 @@ macro_rules! binomial_tree_map {
 #[macro_export]
 macro_rules! eval_binomial_tree {
     ($N:expr, $option:ty, $option_type:ident, $strike:expr, $spot:expr, $expiry:expr, $volatility:expr, $interest_rate:expr, $dividend_rate:expr) => {{
-        use $crate::binomial_tree_map::r#static::{StaticBinomialTreeMap, MAX_TREE_SIZE};
-        use $crate::instruments::{$option, OptionType, OptionContract};
-        use $crate::model::{erase_type, smoothing, truncation, CoxRossRubenstein};
+        use $crate::binomial_tree_map::r#static::{MAX_TREE_SIZE, StaticBinomialTreeMap};
+        use $crate::instruments::{OptionContract, OptionType, $option};
+        use $crate::model::{CoxRossRubenstein, erase_type, smoothing, truncation};
         use $crate::model::{Expiry, Spot};
 
         if $N > MAX_TREE_SIZE {

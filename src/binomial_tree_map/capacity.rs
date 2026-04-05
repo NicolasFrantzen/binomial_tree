@@ -2,10 +2,8 @@ use const_for::const_for;
 
 pub(crate) const fn calculate_step_capacity(step_number: usize) -> usize {
     if step_number > 1 {
-        calculate_capacity(step_number) - calculate_capacity(step_number-1)
-    }
-    else
-    {
+        calculate_capacity(step_number) - calculate_capacity(step_number - 1)
+    } else {
         1usize
     }
 }
