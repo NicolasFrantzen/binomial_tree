@@ -23,7 +23,7 @@ jobs:
       - name: Generate documentation
         run: cargo doc --no-deps --document-private-items
         env:
-          RUSTDOCFLAGS: "-D warnings"
+          RUSTDOCFLAGS: "-D warnings --default-theme light"
       
       - name: Deploy to GitHub Pages
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
