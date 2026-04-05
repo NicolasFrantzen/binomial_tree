@@ -580,8 +580,81 @@ impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::Val
     }
 }
 
+/// Type-erased trait for evaluated binomial trees.
+///
+/// This trait enables runtime polymorphism for `EvaluatedBinomialTreeModelImpl`,
+/// allowing the `eval_binomial_tree!` macro to return a type-erased object
+/// without exposing the generic type parameters to the caller.
+pub trait EvaluatedBinomialTree: fmt::Display {
+    /// Get the option value at the root node
+    fn value(&self) -> Value;
+
+    /// Get the delta greek (sensitivity to spot price changes)
+    fn delta(&self) -> Delta;
+
+    /// Get the gamma greek (second derivative of option value w.r.t. spot)
+    fn gamma(&self) -> Gamma;
+
+    /// Get the theta greek (sensitivity to time decay)
+    fn theta(&self) -> Theta;
+
+    /// Get all greeks together
+    fn greeks(&self) -> Greeks;
+
+    /// Display the entire binomial tree (for debugging/visualization)
+    ///
+    /// This is a convenience method. You can also use the Display trait directly
+    /// by calling `println!("{}", tree)` or similar.
+    fn display_tree(&self) -> String {
+        format!("{}", self)
+    }
+}
+
+impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::ValueAtBorder>
+    EvaluatedBinomialTree for EvaluatedBinomialTreeModelImpl<Stack, V, U>
+{
+    fn value(&self) -> Value {
+        EvaluatedBinomialTreeModelImpl::value(self)
+    }
+
+    fn delta(&self) -> Delta {
+        EvaluatedBinomialTreeModelImpl::delta(self)
+    }
+
+    fn gamma(&self) -> Gamma {
+        EvaluatedBinomialTreeModelImpl::gamma(self)
+    }
+
+    fn theta(&self) -> Theta {
+        EvaluatedBinomialTreeModelImpl::theta(self)
+    }
+
+    fn greeks(&self) -> Greeks {
+        EvaluatedBinomialTreeModelImpl::greeks(self)
+    }
+}
+
 pub struct Spot(pub f32);
 pub struct Expiry(pub f32);
+
+/// Type-erased evaluated binomial tree result
+pub type EvaluatedTree = Box<dyn EvaluatedBinomialTree>;
+
+/// Helper function to create a type-erased tree from any concrete implementation
+/// **Note:** While this is a public function, it's primarily intended for
+/// use by the `eval_binomial_tree!` and related macros. Direct usage is
+/// not recommended; use the macros instead.
+#[doc(hidden)] // Hide from public docs since it's for macro use
+#[allow(private_bounds)]
+pub fn erase_type<
+    Stack: BinomialTreeStackImpl + 'static,
+    V: smoothing::ValueAtLeaf + 'static,
+    U: truncation::ValueAtBorder + 'static,
+>(
+    tree: EvaluatedBinomialTreeModelImpl<Stack, V, U>,
+) -> EvaluatedTree {
+    Box::new(tree)
+}
 
 #[derive(Copy, Clone)]
 pub struct VolatilityParameters {
