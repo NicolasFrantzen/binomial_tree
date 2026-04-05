@@ -1,9 +1,0 @@
-(function() {
-    const implementors = Object.fromEntries([["binominal_tree_model",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.94.1/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"enum\" href=\"binominal_tree_model/binomial_tree_map/nodes/enum.UpDown.html\" title=\"enum binominal_tree_model::binomial_tree_map::nodes::UpDown\">UpDown</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.94.1/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"enum\" href=\"binominal_tree_model/instruments/enum.OptionType.html\" title=\"enum binominal_tree_model::instruments::OptionType\">OptionType</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.94.1/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"struct\" href=\"binominal_tree_model/binomial_tree_map/nodes/struct.NodeName2.html\" title=\"struct binominal_tree_model::binomial_tree_map::nodes::NodeName2\">NodeName2</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.94.1/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"struct\" href=\"binominal_tree_model/binomial_tree_map/nodes/struct.NodeName.html\" title=\"struct binominal_tree_model::binomial_tree_map::nodes::NodeName\">NodeName</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.94.1/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"struct\" href=\"binominal_tree_model/model/struct.VolatilityParameters.html\" title=\"struct binominal_tree_model::model::VolatilityParameters\">VolatilityParameters</a>",0]]]]);
-    if (window.register_implementors) {
-        window.register_implementors(implementors);
-    } else {
-        window.pending_implementors = implementors;
-    }
-})()
-//{"start":59,"fragment_lengths":[1646]}

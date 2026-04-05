@@ -1,2 +1,0 @@
-createSrcSidebar('[["binominal_tree_model",["",[["analytical",[],["black_scholes.rs","mod.rs","normal_distribution.rs"]],["binomial_tree_map",[],["capacity.rs","dynamic.rs","mod.rs","nodes.rs","static.rs"]]],["instruments.rs","lib.rs","macros.rs","model.rs"]]]]');
-//{"start":19,"fragment_lengths":[241]}
