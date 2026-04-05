@@ -183,19 +183,17 @@ impl NodeName2 {
 
 impl Hash for NodeName2 {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        if let Some(direction) = self.direction {
-            if direction == UpDown::Up {
+        if let Some(direction) = self.direction
+            && direction == UpDown::Up {
                 direction.hash(state);
             }
-        }
         for i in self.name.iter() {
             i.hash(state)
         }
-        if let Some(direction) = self.direction {
-            if direction == UpDown::Down {
+        if let Some(direction) = self.direction
+            && direction == UpDown::Down {
                 direction.hash(state);
             }
-        }
     }
 }
 

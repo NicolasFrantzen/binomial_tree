@@ -453,6 +453,7 @@ impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::Val
                 let r = positions[level_idx + 1][j + 1] + node_width / 2;
 
                 // Horizontal line
+                #[allow(clippy::needless_range_loop)]
                 for x in l.min(p)..=r.max(p) {
                     if x < width && connector_row < rows && canvas[connector_row][x] == ' ' {
                         canvas[connector_row][x] = '─';
@@ -471,7 +472,7 @@ impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::Val
             let num_children = positions[level_idx + 1].len();
             let num_parents = positions[level_idx].len();
 
-            for child_idx in 0..num_children {
+            for (child_idx, _) in positions.iter().enumerate().take(num_children) {
                 let child_pos = positions[level_idx + 1][child_idx] + node_width / 2;
 
                 // Check if this child has one or two parents
