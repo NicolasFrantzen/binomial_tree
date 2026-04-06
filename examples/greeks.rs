@@ -1,4 +1,4 @@
-use binominal_tree_model::eval_binomial_tree_with_steps;
+use binominal_tree_model::{american_greeks, european_greeks};
 
 fn main() {
     println!("=== Greeks Calculation Example ===\n");
@@ -7,9 +7,7 @@ fn main() {
     println!("American Call Option");
     println!("Strike: 95.0, Spot: 100.0, Expiry: 0.5 years, Vol: 0.3, Rate: 0.05\n");
 
-    let american_tree = eval_binomial_tree_with_steps!(
-        100,
-        AmericanOption,
+    let american_greeks = american_greeks!(
         Call,
         95.0,  // strike
         100.0, // spot
@@ -19,7 +17,6 @@ fn main() {
         0.0    // dividend_rate
     );
 
-    let american_greeks = american_tree.greeks();
     println!("Greeks:");
     println!("  Value: {:.4}", american_greeks.value.0);
     println!("  Delta: {:.4}", american_greeks.delta.0);
@@ -30,9 +27,7 @@ fn main() {
     println!("European Put Option");
     println!("Strike: 105.0, Spot: 100.0, Expiry: 0.5 years, Vol: 0.3, Rate: 0.05\n");
 
-    let european_tree = eval_binomial_tree_with_steps!(
-        100,
-        EuropeanOption,
+    let european_greeks = european_greeks!(
         Put,
         105.0, // strike
         100.0, // spot
@@ -42,7 +37,6 @@ fn main() {
         0.0    // dividend_rate
     );
 
-    let european_greeks = european_tree.greeks();
     println!("Greeks:");
     println!("  Value: {:.4}", european_greeks.value.0);
     println!("  Delta: {:.4}", european_greeks.delta.0);

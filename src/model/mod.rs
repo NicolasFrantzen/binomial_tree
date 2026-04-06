@@ -25,10 +25,10 @@ pub struct CoxRossRubenstein<Stack, V = leaf_smoothing::None, U = border_truncat
 
 #[allow(private_bounds)]
 impl<
-    Stack: BinomialTreeStackImpl,
-    V: leaf_smoothing::ValueAtLeaf,
-    U: border_truncation::ValueAtBorder,
-> CoxRossRubenstein<Stack, V, U>
+        Stack: BinomialTreeStackImpl,
+        V: leaf_smoothing::ValueAtLeaf,
+        U: border_truncation::ValueAtBorder,
+    > CoxRossRubenstein<Stack, V, U>
 {
     pub fn new(
         stack: Stack,
@@ -54,12 +54,26 @@ impl<
         }
     }
 
+    /// Calculates the discounted node value in the binomial tree.
+    ///
+    /// This computes the expected value at a node using risk-neutral probability,
+    /// then discounts it back one time step.
+    ///
+    /// # Arguments
+    /// * `up_value` - The option value at the up node
+    /// * `down_value` - The option value at the down node
+    ///
+    /// # Returns
+    /// The discounted expected value: `(up_value * p + down_value * (1 - p)) * discount_factor`
+    fn calculate_node_value(&self, up_value: f32, down_value: f32) -> f32 {
+        let p = self.params.p();
+        (up_value * p + down_value * (1.0 - p)) * self.discount_factor
+    }
+
     pub fn eval<T: OptionContract + Sync>(
         self,
         option: T,
     ) -> EvaluatedBinomialTreeModelImpl<Stack, V, U> {
-        let p = self.params.p();
-
         let mut tree_map = <Stack as BinomialTreeStackImpl>::NodeNameContainerType::default();
         let truncation = U::new(
             self.spot.0,
@@ -77,9 +91,7 @@ impl<
                 let up_value = tree_map.get(&node.up());
                 let down_value = tree_map.get(&node.down());
 
-                // TODO: Hide details
-                let price =
-                    self.spot.0 * self.params.u.powi(j as i32) * self.params.d.powi((i - j) as i32);
+                let price = self.params.calculate_price(self.spot.0, j, i - j);
 
                 //println!("{:?}{:?}", node.up(), up_value);
                 //println!("{:?}{:?}", node.down(), down_value);
@@ -89,8 +101,7 @@ impl<
                         let up_value = up_value.get();
                         let down_value = down_value.get(); //.expect("The tree should be evaluated backwards");
 
-                        // TODO: Hide details
-                        let value = (up_value * p + down_value * (1.0 - p)) * self.discount_factor;
+                        let value = self.calculate_node_value(*up_value, *down_value);
 
                         let option_value = option.value(value, price);
                         tree_map.set(node, option_value.into());
@@ -142,10 +153,10 @@ pub struct EvaluatedBinomialTreeModelImpl<
 }
 
 impl<
-    Stack: BinomialTreeStackImpl,
-    V: leaf_smoothing::ValueAtLeaf,
-    U: border_truncation::ValueAtBorder,
-> fmt::Display for EvaluatedBinomialTreeModelImpl<Stack, V, U>
+        Stack: BinomialTreeStackImpl,
+        V: leaf_smoothing::ValueAtLeaf,
+        U: border_truncation::ValueAtBorder,
+    > fmt::Display for EvaluatedBinomialTreeModelImpl<Stack, V, U>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         const GAP: usize = 8; // minimum spacing between sibling nodes
@@ -162,9 +173,10 @@ impl<
             let mut row = Vec::with_capacity(level.len());
             for (j, node) in level.iter().enumerate() {
                 let value = self.map.get(node).unwrap().get();
-                let price = self.model.spot.0
-                    * self.model.params.u.powi(j as i32)
-                    * self.model.params.d.powi((i - j) as i32);
+                let price = self
+                    .model
+                    .params
+                    .calculate_price(self.model.spot.0, j, i - j);
 
                 let price_str = format!("{:.2}", price);
                 let value_str = format!("{:.4}", value);
@@ -339,10 +351,10 @@ impl<
 
 #[allow(private_bounds)]
 impl<
-    Stack: BinomialTreeStackImpl,
-    V: leaf_smoothing::ValueAtLeaf,
-    U: border_truncation::ValueAtBorder,
-> EvaluatedBinomialTreeModelImpl<Stack, V, U>
+        Stack: BinomialTreeStackImpl,
+        V: leaf_smoothing::ValueAtLeaf,
+        U: border_truncation::ValueAtBorder,
+    > EvaluatedBinomialTreeModelImpl<Stack, V, U>
 {
     pub fn value(&self) -> Value {
         let initial_node = <<Stack as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType::default();
@@ -440,10 +452,10 @@ pub trait EvaluatedBinomialTree: fmt::Display {
 }
 
 impl<
-    Stack: BinomialTreeStackImpl,
-    V: leaf_smoothing::ValueAtLeaf,
-    U: border_truncation::ValueAtBorder,
-> EvaluatedBinomialTree for EvaluatedBinomialTreeModelImpl<Stack, V, U>
+        Stack: BinomialTreeStackImpl,
+        V: leaf_smoothing::ValueAtLeaf,
+        U: border_truncation::ValueAtBorder,
+    > EvaluatedBinomialTree for EvaluatedBinomialTreeModelImpl<Stack, V, U>
 {
     fn value(&self) -> Value {
         EvaluatedBinomialTreeModelImpl::value(self)
@@ -519,6 +531,24 @@ impl VolatilityParameters {
 
     pub(crate) fn p(&self) -> f32 {
         (self.a - self.d) / (self.u - self.d)
+    }
+
+    /// Calculates the asset price at a given node in the binomial tree.
+    ///
+    /// # Arguments
+    /// * `spot_price` - The initial spot price of the underlying asset
+    /// * `up_steps` - Number of up steps taken from the initial node
+    /// * `total_steps` - Total number of steps at this level
+    ///
+    /// # Returns
+    /// The asset price at the node: `spot_price * u^up_steps * d^down_steps`
+    pub(crate) fn calculate_price(
+        &self,
+        spot_price: f32,
+        up_steps: usize,
+        down_steps: usize,
+    ) -> f32 {
+        spot_price * self.u.powi(up_steps as i32) * self.d.powi(down_steps as i32)
     }
 }
 
