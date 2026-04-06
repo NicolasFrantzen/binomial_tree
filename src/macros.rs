@@ -35,15 +35,15 @@ macro_rules! eval_binomial_tree {
     ($N:expr, $option:ty, $option_type:ident, $strike:expr, $spot:expr, $expiry:expr, $volatility:expr, $interest_rate:expr, $dividend_rate:expr) => {{
         use $crate::binomial_tree_map::r#static::{MAX_TREE_SIZE, StaticBinomialTreeMap};
         use $crate::instruments::{OptionContract, OptionType, $option};
-        use $crate::model::{CoxRossRubenstein, erase_type, smoothing, truncation};
+        use $crate::model::{CoxRossRubenstein, border_truncation, erase_type, leaf_smoothing};
         use $crate::model::{Expiry, Spot};
 
         if $N > MAX_TREE_SIZE {
             let tree_map = $crate::binomial_tree_map::dynamic::DynamicBinomialTreeMap::new($N);
             let binom_tree: CoxRossRubenstein<
                 $crate::binomial_tree_map::dynamic::DynamicBinomialTreeMap,
-                smoothing::Black,
-                truncation::Black,
+                leaf_smoothing::Black,
+                border_truncation::Black,
             > = CoxRossRubenstein::new(
                 tree_map,
                 Spot($spot),
@@ -59,8 +59,8 @@ macro_rules! eval_binomial_tree {
             let tree_map = $crate::binomial_tree_map!($N);
             let binom_tree: CoxRossRubenstein<
                 StaticBinomialTreeMap,
-                smoothing::Black,
-                truncation::Black,
+                leaf_smoothing::Black,
+                border_truncation::Black,
             > = CoxRossRubenstein::new(
                 tree_map,
                 Spot($spot),

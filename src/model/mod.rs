@@ -5,7 +5,14 @@ use crate::instruments::OptionContract;
 use std::fmt;
 use std::marker::PhantomData;
 
-pub struct CoxRossRubenstein<Stack, V = smoothing::None, U = truncation::None> {
+/// Strategy-based modules for binomial tree evaluation
+pub mod strategies;
+
+// Re-export strategy traits and marker types for convenience
+pub use strategies::border_truncation;
+pub use strategies::leaf_smoothing;
+
+pub struct CoxRossRubenstein<Stack, V = leaf_smoothing::None, U = border_truncation::None> {
     stack: Stack,
     params: VolatilityParameters,
     spot: Spot,
@@ -17,8 +24,11 @@ pub struct CoxRossRubenstein<Stack, V = smoothing::None, U = truncation::None> {
 }
 
 #[allow(private_bounds)]
-impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::ValueAtBorder>
-    CoxRossRubenstein<Stack, V, U>
+impl<
+    Stack: BinomialTreeStackImpl,
+    V: leaf_smoothing::ValueAtLeaf,
+    U: border_truncation::ValueAtBorder,
+> CoxRossRubenstein<Stack, V, U>
 {
     pub fn new(
         stack: Stack,
@@ -121,209 +131,21 @@ impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::Val
     }
 }
 
-// TODO: Move?
-pub mod smoothing {
-    use crate::black_scholes::black_value;
-    use crate::instruments::OptionContract;
-    use crate::model::VolatilityParameters;
-
-    pub trait ValueAtLeaf {
-        fn value_at_leaf<U: OptionContract + Sync>(
-            option: &U,
-            price: f32,
-            vol_params: &VolatilityParameters,
-            expiry: f32,
-        ) -> f32;
-    }
-
-    impl ValueAtLeaf for None {
-        fn value_at_leaf<U: OptionContract + Sync>(
-            option: &U,
-            price: f32,
-            _vol_params: &VolatilityParameters,
-            _expiry: f32,
-        ) -> f32 {
-            option.intrinsic_value(price)
-        }
-    }
-
-    impl ValueAtLeaf for Black {
-        fn value_at_leaf<U: OptionContract + Sync>(
-            option: &U,
-            price: f32,
-            vol_params: &VolatilityParameters,
-            expiry: f32,
-        ) -> f32 {
-            let time_to_expiry = expiry; // There is one timestep left to expiry
-            let black_value = black_value(
-                option.option_type(),
-                price,
-                option.strike(),
-                vol_params.volatility,
-                vol_params.interest_rate,
-                vol_params.dividends,
-                time_to_expiry,
-            );
-            option.value(black_value, price)
-        }
-    }
-
-    pub struct None;
-    pub struct Black;
-}
-
-// TODO: Move?
-pub mod truncation {
-    use crate::black_scholes::black_value;
-    use crate::instruments::OptionContract;
-    use crate::model::VolatilityParameters;
-
-    pub trait ValueAtBorder {
-        fn new(spot: f32, expiry: f32, volatility: f32, rate: f32, dividends: f32) -> Self;
-        fn value<U: OptionContract + Sync>(
-            &self,
-            option: &U,
-            value: f32,
-            price: f32,
-            vol_params: &VolatilityParameters,
-            expiry: f32,
-        ) -> Option<f32>;
-        fn not_none() -> bool;
-    }
-
-    pub struct None;
-    pub struct Black {
-        price_bounds: PriceBounds,
-    }
-
-    impl ValueAtBorder for None {
-        fn new(_spot: f32, _expiry: f32, _volatility: f32, _rate: f32, _dividends: f32) -> Self {
-            Self {}
-        }
-
-        fn value<U: OptionContract + Sync>(
-            &self,
-            option: &U,
-            value: f32,
-            price: f32,
-            _vol_params: &VolatilityParameters,
-            _expiry: f32,
-        ) -> Option<f32> {
-            Some(option.value(value, price))
-        }
-
-        fn not_none() -> bool {
-            false
-        }
-    }
-
-    impl ValueAtBorder for Black {
-        fn new(spot: f32, expiry: f32, volatility: f32, rate: f32, dividends: f32) -> Self {
-            const NUM_OF_STD: usize = 6;
-            Self {
-                price_bounds: PriceBounds::new(
-                    spot, expiry, volatility, rate, dividends, NUM_OF_STD,
-                ),
-            }
-        }
-
-        fn value<U: OptionContract + Sync>(
-            &self,
-            option: &U,
-            _value: f32,
-            price: f32,
-            vol_params: &VolatilityParameters,
-            current_expiry: f32,
-        ) -> Option<f32> {
-            if self.price_bounds.is_out_of_range(price) {
-                return Option::None;
-            }
-
-            let black_value = black_value(
-                option.option_type(),
-                price,
-                option.strike(),
-                vol_params.volatility,
-                vol_params.interest_rate,
-                vol_params.dividends,
-                current_expiry,
-            );
-            Some(option.value(black_value, price))
-        }
-
-        fn not_none() -> bool {
-            true
-        }
-    }
-
-    pub struct PriceBounds {
-        lower_bound: f32,
-        upper_bound: f32,
-    }
-
-    impl PriceBounds {
-        /// Compute log-space and standard-space boundaries at num_std deviations under Q measure.
-        fn new(
-            spot: f32,
-            expiry: f32,
-            volatility: f32,
-            rate: f32,
-            dividends: f32,
-            number_of_std: usize,
-        ) -> PriceBounds {
-            let mean_log = spot.ln() + (rate - dividends - 0.5 * volatility.powi(2) * expiry);
-            let std_log = volatility * expiry.sqrt();
-
-            let lower_log = mean_log - (number_of_std as f32) * std_log;
-            let upper_log = mean_log + (number_of_std as f32) * std_log;
-
-            let lower_price = lower_log.exp();
-            let upper_price = upper_log.exp();
-
-            PriceBounds {
-                lower_bound: lower_price,
-                upper_bound: upper_price,
-            }
-        }
-
-        fn is_out_of_range(&self, price: f32) -> bool {
-            let in_range = (self.lower_bound..=self.upper_bound).contains(&price);
-
-            !in_range
-        }
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-
-        #[test]
-        fn test_calculate_price_bounds() {
-            let bounds = PriceBounds::new(100.0, 0.5, 0.3, 0.05, 0.0, 6);
-
-            assert_eq!(bounds.lower_bound, 28.78568);
-            assert_eq!(bounds.upper_bound, 367.03702);
-
-            assert!(!bounds.is_out_of_range(100.0));
-            assert!(bounds.is_out_of_range(0.0));
-            assert!(bounds.is_out_of_range(400.0));
-            assert!(!bounds.is_out_of_range(367.03702));
-        }
-    }
-}
-
 #[allow(private_bounds)]
 pub struct EvaluatedBinomialTreeModelImpl<
     Stack: BinomialTreeStackImpl,
-    V: smoothing::ValueAtLeaf,
-    U: truncation::ValueAtBorder,
+    V: leaf_smoothing::ValueAtLeaf,
+    U: border_truncation::ValueAtBorder,
 > {
     model: CoxRossRubenstein<Stack, V, U>,
     map: <Stack as BinomialTreeStackImpl>::NodeNameContainerType,
 }
 
-impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::ValueAtBorder>
-    fmt::Display for EvaluatedBinomialTreeModelImpl<Stack, V, U>
+impl<
+    Stack: BinomialTreeStackImpl,
+    V: leaf_smoothing::ValueAtLeaf,
+    U: border_truncation::ValueAtBorder,
+> fmt::Display for EvaluatedBinomialTreeModelImpl<Stack, V, U>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         const GAP: usize = 8; // minimum spacing between sibling nodes
@@ -516,8 +338,11 @@ impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::Val
 }
 
 #[allow(private_bounds)]
-impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::ValueAtBorder>
-    EvaluatedBinomialTreeModelImpl<Stack, V, U>
+impl<
+    Stack: BinomialTreeStackImpl,
+    V: leaf_smoothing::ValueAtLeaf,
+    U: border_truncation::ValueAtBorder,
+> EvaluatedBinomialTreeModelImpl<Stack, V, U>
 {
     pub fn value(&self) -> Value {
         let initial_node = <<Stack as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType::default();
@@ -614,8 +439,11 @@ pub trait EvaluatedBinomialTree: fmt::Display {
     }
 }
 
-impl<Stack: BinomialTreeStackImpl, V: smoothing::ValueAtLeaf, U: truncation::ValueAtBorder>
-    EvaluatedBinomialTree for EvaluatedBinomialTreeModelImpl<Stack, V, U>
+impl<
+    Stack: BinomialTreeStackImpl,
+    V: leaf_smoothing::ValueAtLeaf,
+    U: border_truncation::ValueAtBorder,
+> EvaluatedBinomialTree for EvaluatedBinomialTreeModelImpl<Stack, V, U>
 {
     fn value(&self) -> Value {
         EvaluatedBinomialTreeModelImpl::value(self)
@@ -652,8 +480,8 @@ pub type EvaluatedTree = Box<dyn EvaluatedBinomialTree>;
 #[allow(private_bounds)]
 pub fn erase_type<
     Stack: BinomialTreeStackImpl + 'static,
-    V: smoothing::ValueAtLeaf + 'static,
-    U: truncation::ValueAtBorder + 'static,
+    V: leaf_smoothing::ValueAtLeaf + 'static,
+    U: border_truncation::ValueAtBorder + 'static,
 >(
     tree: EvaluatedBinomialTreeModelImpl<Stack, V, U>,
 ) -> EvaluatedTree {
@@ -719,7 +547,7 @@ mod tests {
     use super::*;
     use crate::binomial_tree_map::r#static::StaticBinomialTreeMap;
     use crate::instruments::{AmericanOption, EuropeanOption, OptionType};
-    use crate::model::smoothing::Black;
+    use crate::model::leaf_smoothing::Black;
     use crate::{binomial_tree_map, eval_binomial_tree_with_steps};
     #[cfg(test)]
     use pretty_assertions::assert_eq;
