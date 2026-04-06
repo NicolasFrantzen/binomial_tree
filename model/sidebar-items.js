@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["smoothing","truncation"],"struct":["CoxRossRubenstein","Delta","EvaluatedBinomialTreeModelImpl","Expiry","Gamma","Greeks","Spot","Theta","Value","VolatilityParameters"],"trait":["EvaluatedBinomialTree"],"type":["EvaluatedTree"]};
+window.SIDEBAR_ITEMS = {"mod":["strategies"],"struct":["CoxRossRubenstein","Delta","EvaluatedBinomialTreeModelImpl","Expiry","Gamma","Greeks","Spot","Theta","Value","VolatilityParameters"],"trait":["EvaluatedBinomialTree"],"type":["EvaluatedTree"]};

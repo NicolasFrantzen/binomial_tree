@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["border_truncation","leaf_smoothing"]};
