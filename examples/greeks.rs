@@ -8,8 +8,7 @@ fn main() {
     println!("Strike: 95.0, Spot: 100.0, Expiry: 0.5 years, Vol: 0.3, Rate: 0.05\n");
 
     let american_greeks = american_greeks!(
-        Call,
-        95.0,  // strike
+        Call, 95.0,  // strike
         100.0, // spot
         0.5,   // expiry
         0.3,   // volatility
@@ -28,8 +27,7 @@ fn main() {
     println!("Strike: 105.0, Spot: 100.0, Expiry: 0.5 years, Vol: 0.3, Rate: 0.05\n");
 
     let european_greeks = european_greeks!(
-        Put,
-        105.0, // strike
+        Put, 105.0, // strike
         100.0, // spot
         0.5,   // expiry
         0.3,   // volatility

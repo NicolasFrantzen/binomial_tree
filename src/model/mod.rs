@@ -25,10 +25,10 @@ pub struct CoxRossRubenstein<Stack, V = leaf_smoothing::None, U = border_truncat
 
 #[allow(private_bounds)]
 impl<
-        Stack: BinomialTreeStackImpl,
-        V: leaf_smoothing::ValueAtLeaf,
-        U: border_truncation::ValueAtBorder,
-    > CoxRossRubenstein<Stack, V, U>
+    Stack: BinomialTreeStackImpl,
+    V: leaf_smoothing::ValueAtLeaf,
+    U: border_truncation::ValueAtBorder,
+> CoxRossRubenstein<Stack, V, U>
 {
     pub fn new(
         stack: Stack,
@@ -153,10 +153,10 @@ pub struct EvaluatedBinomialTreeModelImpl<
 }
 
 impl<
-        Stack: BinomialTreeStackImpl,
-        V: leaf_smoothing::ValueAtLeaf,
-        U: border_truncation::ValueAtBorder,
-    > fmt::Display for EvaluatedBinomialTreeModelImpl<Stack, V, U>
+    Stack: BinomialTreeStackImpl,
+    V: leaf_smoothing::ValueAtLeaf,
+    U: border_truncation::ValueAtBorder,
+> fmt::Display for EvaluatedBinomialTreeModelImpl<Stack, V, U>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         const GAP: usize = 8; // minimum spacing between sibling nodes
@@ -351,10 +351,10 @@ impl<
 
 #[allow(private_bounds)]
 impl<
-        Stack: BinomialTreeStackImpl,
-        V: leaf_smoothing::ValueAtLeaf,
-        U: border_truncation::ValueAtBorder,
-    > EvaluatedBinomialTreeModelImpl<Stack, V, U>
+    Stack: BinomialTreeStackImpl,
+    V: leaf_smoothing::ValueAtLeaf,
+    U: border_truncation::ValueAtBorder,
+> EvaluatedBinomialTreeModelImpl<Stack, V, U>
 {
     pub fn value(&self) -> Value {
         let initial_node = <<Stack as BinomialTreeStackImpl>::NodeNameContainerType as BinomialTreeMapImpl>::NodeNameType::default();
@@ -452,10 +452,10 @@ pub trait EvaluatedBinomialTree: fmt::Display {
 }
 
 impl<
-        Stack: BinomialTreeStackImpl,
-        V: leaf_smoothing::ValueAtLeaf,
-        U: border_truncation::ValueAtBorder,
-    > EvaluatedBinomialTree for EvaluatedBinomialTreeModelImpl<Stack, V, U>
+    Stack: BinomialTreeStackImpl,
+    V: leaf_smoothing::ValueAtLeaf,
+    U: border_truncation::ValueAtBorder,
+> EvaluatedBinomialTree for EvaluatedBinomialTreeModelImpl<Stack, V, U>
 {
     fn value(&self) -> Value {
         EvaluatedBinomialTreeModelImpl::value(self)
